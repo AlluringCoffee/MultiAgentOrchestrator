@@ -6,7 +6,7 @@
 
 **Multi-Agent Orchestrator** is a premium visual workflow designer and execution engine for building complex multi-agent LLM systems. It provides a drag-and-drop interface to orchestrate autonomous agents, auditors, routers, and system tools into seamless, intelligent pipelines.
 
-![Multi-Agent Orchestrator Hero](/assets/final_ui_audit_1770132491281.webp)
+![Multi-Agent Orchestrator Hero](/assets/hero_dashboard.png)
 
 ---
 
@@ -103,7 +103,7 @@ Open [http://localhost:8000](http://localhost:8000) to access the Visual Designe
 
 ## 🎨 Visual Designer
 
-![Providers Modal](/assets/providers_modal_1770136042129.png)
+![Providers Config](/assets/providers_config.png)
 
 The designer allows you to:
 
