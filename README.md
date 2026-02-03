@@ -36,12 +36,19 @@ Multi-Agent Orchestrator uses a **Directed Acyclic Graph (DAG)** approach (with 
 3. **Blackboard**: A global shared state that all nodes can read from and write to, enabling complex multi-step reasoning.
 4. **Traffic Controller**: Manages concurrency and agent rate limits to prevent provider exhaustion.
 
-### Example Workflow: Enterprise Studio
+### Example Workflow: Narrative Generation
 
-In the provided `enterprise_studio_v11_template.json`, a complex workflow is defined where:
-* A **Director** oversees multiple **Agents**.
-* **Critics** review the output and provide feedback loops.
-* **Auditors** perform final validation before the **File Output** node saves the results.
+To represent what's happening under the hood, consider this common flow:
+
+1. **Input**: "Write a cyberpunk short story about a neon-lit city."
+2. **Director Node**: Receives the prompt and creates a "Session" on the blackboard.
+3. **Agent (Architect)**: Drafts the world-building details (neon districts, factions).
+4. **Agent (Narrator)**: Writes the story based on the Architect's draft.
+5. **Critic Node**: Iterates with the Narrator until the quality threshold is met.
+6. **Auditor**: Performs a final check for safety and consistency.
+7. **Output**: Saves the final story to the `exports/` folder.
+
+You can load this exact pattern using the `enterprise_studio_v11_template.json` from the `workflows` folder.
 
 ---
 
@@ -49,7 +56,7 @@ In the provided `enterprise_studio_v11_template.json`, a complex workflow is def
 
 ### Prerequisites
 
-- Python 3.9+
+* Python 3.9+
 * Node.js & npm (for front-end dependencies)
 
 ### Setup
@@ -99,6 +106,7 @@ Open [http://localhost:8000](http://localhost:8000) to access the Visual Designe
 ![Providers Modal](/assets/providers_modal_1770136042129.png)
 
 The designer allows you to:
+
 * **Search & Filter** the agent palette.
 * **Tidy** your layout with one click using the auto-layout engine.
 * **Fit View** to instantly center your complex graphs.
