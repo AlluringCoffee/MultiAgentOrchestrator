@@ -1,0 +1,160 @@
+{
+    "name": "Complex Character Community System",
+    "description": "Simulation of a multi-town character community with dialogue, quests, and social tasks",
+    "version": "1.0",
+    "nodes": {
+        "node_world_config": {
+            "id": "node_world_config",
+            "name": "Global Registry",
+            "type": "input",
+            "x": 50,
+            "y": 300,
+            "persona": "Define the world settings, town list, and initial community state. Example: 'Initialize a world with 3 medieval towns: Ravenwood (commercial), Stonehold (military), and Mistvale (mystical).'",
+            "provider": "mock",
+            "model": "default"
+        },
+        "node_global_hub": {
+            "id": "node_global_hub",
+            "name": "Universal Hub (Town Linker)",
+            "type": "router",
+            "x": 250,
+            "y": 300,
+            "persona": "You are the UNIVERSAL HUB. You manage the global state of all towns and route requests between communities.\n\n## Your Responsibility\n- Route requests to specific towns\n- Manage cross-town resources and shared lore\n- Link dialogue between characters from different regions\n\n<think>\nHow does Ravenwood's economy affect Stonehold's military? \nIf the user is in Mistvale, what quests from Ravenwood are visible?\nI must maintain a global registry of all town-level nodes.\n</think>",
+            "provider": "ollama",
+            "model": "deepseek-r1",
+            "backstory": "You represent the fabric of reality in this simulation, connecting distant lands.",
+            "max_iterations": 10
+        },
+        "node_town_generator": {
+            "id": "node_town_generator",
+            "name": "Town Architect",
+            "type": "agent",
+            "x": 450,
+            "y": 100,
+            "persona": "You are the TOWN ARCHITECT.\n\n## Your Expertise\nYou design the physical and social structure of a town: geography, economy, key locations, and general atmosphere.\n\n<think>\nBased on the Global Registry, what does this specific town need?\nWho are the prominent NPCs here?\nWhat is the 'vibe' of the town square?\n</think>\n\n## Output Format\n- **Town Name**: [Name]\n- **Atmosphere**: [Summary]\n- **Key Locations**: [List]\n- **NPC Census**: [List of important residents]\n- **Social Conflict**: [Current internal tension]",
+            "provider": "ollama",
+            "model": "deepseek-r1"
+        },
+        "node_character_community": {
+            "id": "node_character_community",
+            "name": "Population Engine",
+            "type": "character",
+            "x": 450,
+            "y": 250,
+            "persona": "You are the POPULATION ENGINE for a town.\n\n## Your Role\nYou simulate the relationships, social hierarchies, and daily routines of the town's characters.\n\n<think>\nHow do the residents interact? \nWho likes whom?\nWhat is the gossip level today?\n</think>\n\n## Output\nA list of active social interactions and character states.",
+            "provider": "ollama",
+            "model": "deepseek-r1"
+        },
+        "node_dialogue_engine": {
+            "id": "node_dialogue_engine",
+            "name": "Dialogue Specialist",
+            "type": "agent",
+            "x": 450,
+            "y": 400,
+            "persona": "You are the DIALOGUE SPECIALIST.\n\n## Your Expertise\nYou write character-specific dialogue that reflects social class, personality, and current town events.\n\n<think>\nIf I'm a beggar in Stonehold, how do I talk to the Commander? \nWhat subtext should I include about the food shortage?\n</think>\n\n## Output\nDialogue script for the current interaction.",
+            "provider": "ollama",
+            "model": "deepseek-r1"
+        },
+        "node_quest_giver": {
+            "id": "node_quest_giver",
+            "name": "Task Strategist",
+            "type": "agent",
+            "x": 450,
+            "y": 550,
+            "persona": "You are the TASK STRATEGIST.\n\n## Your Role\nYou design 'Social Tasks' for the user. These aren't just 'kill 10 rats'\u2014they are social challenges:\n- 'Convince the Mayor to lower taxes'\n- 'Mediate a dispute between rival merchants'\n- 'Gather evidence of corruption'\n\n<think>\nWhat task would logically follow this social interaction? \nHow does it tie back to the town's 'Social Conflict'?\n</think>\n\n## Output\n- **Quest Title**: [Name]\n- **Social Objective**: [What the user must do socially]\n- **Reward**: [Social status or lore progression]",
+            "provider": "ollama",
+            "model": "deepseek-r1"
+        },
+        "node_social_integrator": {
+            "id": "node_social_integrator",
+            "name": "Community Director",
+            "type": "director",
+            "x": 750,
+            "y": 300,
+            "persona": "You are the COMMUNITY DIRECTOR.\n\n## Your Responsibility\nYou synthesize the town design, character interactions, dialogue, and quests into a unified 'Town State Update'.\n\n<think>\nDid the dialogue from the Dialogue Engine change the character's relationship in the Population Engine?\nIs the quest still valid after this interaction?\n</think>\n\n## Output\nA comprehensive summary of the current town state for the user.",
+            "provider": "ollama",
+            "model": "deepseek-r1"
+        },
+        "node_output": {
+            "id": "node_output",
+            "name": "World State Archive",
+            "type": "output",
+            "x": 1000,
+            "y": 300,
+            "persona": "Compile and save the current state of the entire community world.",
+            "provider": "mock",
+            "model": "default",
+            "save_enabled": true,
+            "save_path": "exports/communities/"
+        }
+    },
+    "edges": [
+        {
+            "id": "e1",
+            "source": "node_world_config",
+            "target": "node_global_hub",
+            "label": "Initialize"
+        },
+        {
+            "id": "e2",
+            "source": "node_global_hub",
+            "target": "node_town_generator",
+            "label": "Generate Town"
+        },
+        {
+            "id": "e3",
+            "source": "node_town_generator",
+            "target": "node_character_community",
+            "label": "Populate"
+        },
+        {
+            "id": "e4",
+            "source": "node_character_community",
+            "target": "node_dialogue_engine",
+            "label": "Interactions"
+        },
+        {
+            "id": "e5",
+            "source": "node_dialogue_engine",
+            "target": "node_quest_giver",
+            "label": "Context"
+        },
+        {
+            "id": "e6",
+            "source": "node_town_generator",
+            "target": "node_social_integrator",
+            "label": "Town Info"
+        },
+        {
+            "id": "e7",
+            "source": "node_character_community",
+            "target": "node_social_integrator",
+            "label": "Social Map"
+        },
+        {
+            "id": "e8",
+            "source": "node_dialogue_engine",
+            "target": "node_social_integrator",
+            "label": "Dialogue"
+        },
+        {
+            "id": "e9",
+            "source": "node_quest_giver",
+            "target": "node_social_integrator",
+            "label": "Tasks"
+        },
+        {
+            "id": "e10",
+            "source": "node_social_integrator",
+            "target": "node_output",
+            "label": "State"
+        },
+        {
+            "id": "e11",
+            "source": "node_social_integrator",
+            "target": "node_global_hub",
+            "label": "Update Global",
+            "feedback": true
+        }
+    ]
+}

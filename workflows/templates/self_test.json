@@ -1,0 +1,113 @@
+{
+    "name": "System Self-Test",
+    "description": "Tests the Multi-Agent Orchestrator system components",
+    "version": "1.0",
+    "nodes": {
+        "node_start": {
+            "id": "node_start",
+            "name": "Test Initiator",
+            "type": "input",
+            "x": 100,
+            "y": 300,
+            "persona": "Initialize the self-test sequence.",
+            "provider": "mock",
+            "model": "default"
+        },
+        "node_connectivity": {
+            "id": "node_connectivity",
+            "name": "Connectivity Test",
+            "type": "agent",
+            "x": 300,
+            "y": 150,
+            "persona": "You are a system health checker. Confirm you can respond. Reply with:\n\nCONNECTIVITY TEST: PASSED\n- Provider: [your provider name]\n- Model: [your model name]\n- Timestamp: [current time estimate]\n\nIf you can read this and respond, the connectivity test passes.",
+            "provider": "ollama",
+            "model": "deepseek-r1"
+        },
+        "node_context": {
+            "id": "node_context",
+            "name": "Context Test",
+            "type": "agent",
+            "x": 300,
+            "y": 300,
+            "persona": "You are testing the context passing mechanism. Summarize the input you received in 1-2 sentences. Then confirm:\n\nCONTEXT TEST: PASSED\n- Input received: Yes/No\n- Input length: [approximate characters]\n- Key content: [brief summary]",
+            "provider": "ollama",
+            "model": "deepseek-r1"
+        },
+        "node_reasoning": {
+            "id": "node_reasoning",
+            "name": "Reasoning Test",
+            "type": "agent",
+            "x": 300,
+            "y": 450,
+            "persona": "You are testing reasoning capabilities. Solve this simple logic puzzle:\n\nIf A > B and B > C, what is the relationship between A and C?\n\nProvide your <think> reasoning process </think> then answer:\n\nREASONING TEST: PASSED/FAILED\n- Answer: [your answer]\n- Logic: [brief explanation]",
+            "provider": "ollama",
+            "model": "deepseek-r1"
+        },
+        "node_director": {
+            "id": "node_director",
+            "name": "Integration Director",
+            "type": "director",
+            "x": 550,
+            "y": 300,
+            "persona": "You are the test integration director. Review all test results and create a summary:\n\n## SYSTEM SELF-TEST RESULTS\n\n| Test | Status |\n|------|--------|\n| Connectivity | [PASS/FAIL] |\n| Context Passing | [PASS/FAIL] |\n| Reasoning | [PASS/FAIL] |\n\n### Overall Status: [PASS/FAIL]\n\nNote any failures or concerns.",
+            "provider": "ollama",
+            "model": "deepseek-r1"
+        },
+        "node_output": {
+            "id": "node_output",
+            "name": "Test Report",
+            "type": "output",
+            "x": 750,
+            "y": 300,
+            "persona": "Save the test results.",
+            "provider": "mock",
+            "model": "default",
+            "save_enabled": true,
+            "save_path": "exports/tests/"
+        }
+    },
+    "edges": [
+        {
+            "id": "e1",
+            "source": "node_start",
+            "target": "node_connectivity",
+            "label": "Init"
+        },
+        {
+            "id": "e2",
+            "source": "node_start",
+            "target": "node_context",
+            "label": "Init"
+        },
+        {
+            "id": "e3",
+            "source": "node_start",
+            "target": "node_reasoning",
+            "label": "Init"
+        },
+        {
+            "id": "e4",
+            "source": "node_connectivity",
+            "target": "node_director",
+            "label": "Result"
+        },
+        {
+            "id": "e5",
+            "source": "node_context",
+            "target": "node_director",
+            "label": "Result"
+        },
+        {
+            "id": "e6",
+            "source": "node_reasoning",
+            "target": "node_director",
+            "label": "Result"
+        },
+        {
+            "id": "e7",
+            "source": "node_director",
+            "target": "node_output",
+            "label": "Report"
+        }
+    ]
+}

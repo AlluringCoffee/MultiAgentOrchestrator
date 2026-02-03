@@ -1,0 +1,1331 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Singularity's Shadow - Enhanced Edition</title>
+
+    <!-- Three.js Core -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <!-- Post-Processing -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;700&family=JetBrains+Mono:wght@400;700&display=swap"
+        rel="stylesheet">
+
+    <style>
+        :root {
+            --bg: #050508;
+            --accent: #ff00ff;
+            --secondary: #00ffff;
+            --tertiary: #ffaa00;
+            --glass: rgba(255, 255, 255, 0.05);
+            --border: rgba(255, 255, 255, 0.1);
+            --glow: 0 0 20px rgba(255, 0, 255, 0.5);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: var(--bg);
+            color: #fff;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        #container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        /* Vignette Overlay */
+        .vignette {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            background: radial-gradient(ellipse at center, transparent 40%, rgba(0, 0, 0, 0.8) 100%);
+            z-index: 5;
+        }
+
+        .ui-overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .panel {
+            background: var(--glass);
+            -webkit-backdrop-filter: blur(15px);
+            backdrop-filter: blur(15px);
+            border: 1px solid var(--border);
+            padding: 20px 25px;
+            border-radius: 16px;
+            margin-bottom: 15px;
+            pointer-events: auto;
+            min-width: 280px;
+            box-shadow: var(--glow), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .panel:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 30px rgba(255, 0, 255, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+
+        .stat-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--secondary);
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 2.8rem;
+            font-weight: 700;
+            text-shadow: 0 0 20px var(--accent), 0 0 40px var(--accent);
+            transition: transform 0.1s ease;
+        }
+
+        .stat-value.bump {
+            transform: scale(1.1);
+        }
+
+        /* Animated Number Ticker */
+        .ticker {
+            display: inline-block;
+            transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .right-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            pointer-events: auto;
+            max-width: 320px;
+            z-index: 10;
+        }
+
+        .upgrade-card {
+            background: var(--glass);
+            border: 1px solid var(--border);
+            padding: 18px;
+            border-radius: 12px;
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .upgrade-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 0, 255, 0.1), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .upgrade-card:hover::before {
+            left: 100%;
+        }
+
+        .upgrade-card:hover {
+            transform: scale(1.03) translateX(-5px);
+            border-color: var(--accent);
+            background: rgba(255, 0, 255, 0.08);
+            box-shadow: 0 0 25px rgba(255, 0, 255, 0.3);
+        }
+
+        .upgrade-card.affordable {
+            border-color: var(--tertiary);
+        }
+
+        .upgrade-card.affordable:hover {
+            border-color: var(--tertiary);
+            box-shadow: 0 0 25px rgba(255, 170, 0, 0.4);
+        }
+
+        .upgrade-card h3 {
+            margin: 0;
+            font-size: 1.1rem;
+            color: var(--secondary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .upgrade-card h3 .count {
+            background: var(--accent);
+            color: #000;
+            padding: 2px 8px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .upgrade-card p {
+            font-size: 0.85rem;
+            margin: 8px 0;
+            color: #aaa;
+            line-height: 1.4;
+        }
+
+        .upgrade-card .cost {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: bold;
+            color: var(--accent);
+            font-size: 1rem;
+        }
+
+        .upgrade-card .effect {
+            font-size: 0.75rem;
+            color: var(--tertiary);
+            margin-top: 5px;
+        }
+
+        /* Prestige Panel */
+        .prestige-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            z-index: 10;
+        }
+
+        .prestige-btn {
+            background: linear-gradient(135deg, #1a0030 0%, #300050 100%);
+            border: 2px solid var(--accent);
+            color: var(--accent);
+            padding: 15px 30px;
+            border-radius: 30px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .prestige-btn:hover {
+            background: var(--accent);
+            color: #000;
+            box-shadow: 0 0 40px var(--accent);
+            transform: scale(1.05);
+        }
+
+        .prestige-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .narrative-toast {
+            position: absolute;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--glass);
+            -webkit-backdrop-filter: blur(20px);
+            backdrop-filter: blur(20px);
+            padding: 18px 40px;
+            border-radius: 40px;
+            border: 1px solid var(--accent);
+            text-align: center;
+            font-style: italic;
+            font-size: 1.1rem;
+            opacity: 0;
+            transition: opacity 0.8s ease, transform 0.8s ease;
+            z-index: 20;
+            max-width: 600px;
+        }
+
+        .narrative-toast.visible {
+            opacity: 1;
+            transform: translateX(-50%) translateY(-10px);
+        }
+
+        .ending-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #fff 0%, #f0e6ff 100%);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            color: #000;
+            text-align: center;
+            padding: 50px;
+        }
+
+        .ending-overlay h1 {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            text-shadow: 0 0 30px rgba(255, 0, 255, 0.5);
+        }
+
+        .ending-overlay p {
+            font-size: 1.5rem;
+            color: #333;
+        }
+
+        /* Stats Bar */
+        .stats-bar {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            gap: 20px;
+            z-index: 10;
+        }
+
+        .mini-stat {
+            background: var(--glass);
+            padding: 10px 20px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+        }
+
+        .mini-stat span {
+            color: var(--secondary);
+        }
+
+        /* Particle trail effect (CSS fallback) */
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 0.3;
+            }
+
+            50% {
+                opacity: 0.6;
+            }
+        }
+
+        .effect-value {
+            color: var(--secondary);
+            font-weight: bold;
+        }
+
+        /* Achievement Toast */
+        .achievement-toast {
+            position: fixed;
+            top: -100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #1a0030 0%, #300050 100%);
+            border: 2px solid var(--tertiary);
+            padding: 15px 30px;
+            border-radius: 10px;
+            z-index: 100;
+            transition: top 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .achievement-toast.visible {
+            top: 20px;
+        }
+
+        .achievement-toast .icon {
+            font-size: 2rem;
+        }
+
+        .achievement-toast .text h4 {
+            margin: 0;
+            color: var(--tertiary);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .achievement-toast .text p {
+            margin: 5px 0 0 0;
+            font-size: 1rem;
+        }
+
+        /* Dynamic Event Banner */
+        .event-banner {
+            position: fixed;
+            top: -80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, rgba(255, 170, 0, 0.2) 0%, rgba(255, 100, 0, 0.3) 100%);
+            border: 2px solid var(--tertiary);
+            padding: 12px 30px;
+            border-radius: 50px;
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            transition: top 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 0 30px rgba(255, 170, 0, 0.5);
+            -webkit-backdrop-filter: blur(10px);
+            backdrop-filter: blur(10px);
+        }
+
+        .event-banner.active {
+            top: 60px;
+        }
+
+        .event-banner .event-icon {
+            font-size: 2rem;
+        }
+
+        .event-banner .event-name {
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: var(--tertiary);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .event-banner .event-desc {
+            font-size: 0.85rem;
+            color: #ccc;
+        }
+
+        .event-banner .event-timer {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #fff;
+            min-width: 50px;
+            text-align: right;
+        }
+
+        @keyframes eventPulse {
+
+            0%,
+            100% {
+                box-shadow: 0 0 30px rgba(255, 170, 0, 0.5);
+            }
+
+            50% {
+                box-shadow: 0 0 50px rgba(255, 170, 0, 0.8);
+            }
+        }
+
+        .event-banner.active {
+            animation: eventPulse 1s infinite;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="vignette"></div>
+
+    <div id="container">
+        <div class="ui-overlay">
+            <div class="panel">
+                <div class="stat-label">Event Horizon Mass</div>
+                <div id="mass" class="stat-value ticker">0</div>
+            </div>
+            <div class="panel">
+                <div class="stat-label">Mass per Second</div>
+                <div id="mps" class="effect-value">0.00 /s</div>
+            </div>
+            <div class="panel">
+                <div class="stat-label">Distortion Level</div>
+                <div id="distortion" class="effect-value">STABLE</div>
+            </div>
+        </div>
+
+        <div class="right-panel" id="upgrades">
+            <!-- Upgrades injected here -->
+        </div>
+
+        <div class="prestige-panel">
+            <button id="prestigeBtn" class="prestige-btn" disabled>
+                ⚡ ASCEND (0 AP)
+            </button>
+        </div>
+
+        <div class="stats-bar">
+            <div class="mini-stat">Ascensions: <span id="ascensions">0</span></div>
+            <div class="mini-stat">Total Mass: <span id="totalMass">0</span></div>
+        </div>
+
+        <!-- Dynamic Event Banner -->
+        <div id="eventBanner" class="event-banner">
+            <div class="event-icon">☀️</div>
+            <div class="event-text">
+                <div class="event-name">SOLAR FLARE</div>
+                <div class="event-desc">10x mass gain!</div>
+            </div>
+            <div class="event-timer">30s</div>
+        </div>
+
+        <div id="narrative" class="narrative-toast"></div>
+        <div id="achievement" class="achievement-toast">
+            <div class="icon">🏆</div>
+            <div class="text">
+                <h4>Achievement Unlocked</h4>
+                <p id="achievementText"></p>
+            </div>
+        </div>
+        <div id="ending" class="ending-overlay">
+            <h1>THE SINGULARITY IS COMPLETE</h1>
+            <p>You have consumed everything. Reality resets in 5 seconds...</p>
+        </div>
+    </div>
+
+    <script>
+        // ═══════════════════════════════════════════════════════════════════
+        // GAME STATE
+        // ═══════════════════════════════════════════════════════════════════
+        const state = {
+            mass: 0,
+            totalMass: 0,
+            totalAllTime: 0,
+            lastUpdate: Date.now(),
+            lastSave: Date.now(),
+            ascensions: 0,
+            ascensionPoints: 0,
+            achievements: {},
+            upgrades: {
+                darkMatter: {
+                    name: 'Dark Matter Pulse',
+                    owned: 0,
+                    baseCost: 15,
+                    cost: 15,
+                    effect: 1,
+                    desc: 'Each click yields +1 mass.',
+                    icon: '🌑'
+                },
+                graviton: {
+                    name: 'Graviton Loop',
+                    owned: 0,
+                    baseCost: 100,
+                    cost: 100,
+                    effect: 1,
+                    desc: 'Generates 1 mass per second.',
+                    icon: '🔄'
+                },
+                shadow: {
+                    name: 'Event Horizon',
+                    owned: 0,
+                    baseCost: 1100,
+                    cost: 1100,
+                    effect: 8,
+                    desc: 'Generates 8 mass per second.',
+                    icon: '🕳️'
+                },
+                collapse: {
+                    name: 'Stellar Collapse',
+                    owned: 0,
+                    baseCost: 12000,
+                    cost: 12000,
+                    effect: 47,
+                    desc: 'Generates 47 mass per second.',
+                    icon: '💫'
+                },
+                quasar: {
+                    name: 'Quasar Engine',
+                    owned: 0,
+                    baseCost: 130000,
+                    cost: 130000,
+                    effect: 260,
+                    desc: 'Generates 260 mass per second.',
+                    icon: '✨'
+                },
+                void: {
+                    name: 'Void Harvester',
+                    owned: 0,
+                    baseCost: 1400000,
+                    cost: 1400000,
+                    effect: 1400,
+                    desc: 'Generates 1400 mass per second.',
+                    icon: '🌌'
+                }
+            },
+            milestones: [
+                { mass: 100, msg: "The horizon expands. Gravity pulse detected.", achieved: false },
+                { mass: 1000, msg: "Light bends around you. Stars begin to fear.", achieved: false },
+                { mass: 10000, msg: "The galaxy notices your hunger.", achieved: false },
+                { mass: 100000, msg: "Civilizations fall silent as you approach.", achieved: false },
+                { mass: 1000000, msg: "You are no longer a singularity. You are THE Singularity.", achieved: false },
+            ],
+            // Dynamic Events System
+            activeEvent: null,
+            eventEndTime: 0,
+            events: {
+                solarFlare: {
+                    name: '☀️ SOLAR FLARE',
+                    desc: '10x mass gain for 30 seconds!',
+                    multiplier: 10,
+                    duration: 30000,
+                    color: '#ffaa00',
+                    chance: 0.02
+                },
+                quantumFlux: {
+                    name: '⚛️ QUANTUM FLUCTUATION',
+                    desc: 'All upgrade costs halved for 20 seconds!',
+                    costMult: 0.5,
+                    duration: 20000,
+                    color: '#00ffff',
+                    chance: 0.015
+                },
+                stellarNursery: {
+                    name: '🌟 STELLAR NURSERY',
+                    desc: 'Particle spawn rate 5x for 25 seconds!',
+                    spawnMult: 5,
+                    duration: 25000,
+                    color: '#ff66ff',
+                    chance: 0.025
+                },
+                voidEcho: {
+                    name: '🕳️ VOID ECHO',
+                    desc: 'Double click power for 15 seconds!',
+                    clickMult: 2,
+                    duration: 15000,
+                    color: '#aa00ff',
+                    chance: 0.03
+                }
+            }
+        };
+
+        // ═══════════════════════════════════════════════════════════════════
+        // THREE.JS SETUP
+        // ═══════════════════════════════════════════════════════════════════
+        let scene, camera, renderer, composer;
+        let particles, singularity, glowMesh, accretionDisk;
+        let mouseX = 0, mouseY = 0;
+        let particleVelocities = [];
+        const PARTICLE_COUNT = 8000;
+
+        function init() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 5;
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            document.getElementById('container').appendChild(renderer.domElement);
+
+            // Post-Processing Setup
+            setupPostProcessing();
+
+            // Create singularity
+            createSingularity();
+
+            // Create particles with velocity tracking
+            createParticles();
+
+            // Create accretion disk
+            createAccretionDisk();
+
+            // Event listeners
+            window.addEventListener('resize', onWindowResize, false);
+            window.addEventListener('mousemove', onMouseMove, false);
+            window.addEventListener('click', onClick, false);
+            document.getElementById('prestigeBtn').addEventListener('click', prestige);
+
+            // Initialize UI
+            renderUpgrades();
+            animate();
+
+            // Welcome message
+            showNarrative("You are the shadow. Consume the light.");
+
+            // Initialize Audio System
+            initAudio();
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // AMBIENT AUDIO SYSTEM (Web Audio API)
+        // ═══════════════════════════════════════════════════════════════════
+        let audioCtx = null;
+        let masterGain = null;
+        let droneOsc = null;
+        let droneGain = null;
+        let audioEnabled = false;
+
+        function initAudio() {
+            // Audio requires user interaction to start
+            const startAudio = () => {
+                if (audioCtx) return;
+
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                masterGain = audioCtx.createGain();
+                masterGain.gain.value = 0.3;
+                masterGain.connect(audioCtx.destination);
+
+                // Create ambient drone
+                createAmbientDrone();
+                audioEnabled = true;
+
+                document.removeEventListener('click', startAudio);
+            };
+            document.addEventListener('click', startAudio);
+        }
+
+        function createAmbientDrone() {
+            if (!audioCtx) return;
+
+            // Deep bass drone
+            droneOsc = audioCtx.createOscillator();
+            droneOsc.type = 'sine';
+            droneOsc.frequency.value = 40; // Deep rumble
+
+            droneGain = audioCtx.createGain();
+            droneGain.gain.value = 0.15;
+
+            // Add slight modulation for eerie effect
+            const lfo = audioCtx.createOscillator();
+            const lfoGain = audioCtx.createGain();
+            lfo.type = 'sine';
+            lfo.frequency.value = 0.1; // Very slow wobble
+            lfoGain.gain.value = 5; // Frequency deviation
+            lfo.connect(lfoGain);
+            lfoGain.connect(droneOsc.frequency);
+            lfo.start();
+
+            droneOsc.connect(droneGain);
+            droneGain.connect(masterGain);
+            droneOsc.start();
+        }
+
+        function playClickSound() {
+            if (!audioCtx || !audioEnabled) return;
+
+            // Quick blip sound
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+
+            osc.type = 'sine';
+            osc.frequency.value = 200 + Math.random() * 100;
+
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gain.gain.exponentialDecayTo = gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+
+            osc.connect(gain);
+            gain.connect(masterGain);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.1);
+        }
+
+        function playEventSound(eventColor) {
+            if (!audioCtx || !audioEnabled) return;
+
+            // Event fanfare
+            const osc1 = audioCtx.createOscillator();
+            const osc2 = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+
+            osc1.type = 'triangle';
+            osc2.type = 'sine';
+            osc1.frequency.value = 440;
+            osc2.frequency.value = 554; // Major third
+
+            gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+
+            osc1.connect(gain);
+            osc2.connect(gain);
+            gain.connect(masterGain);
+
+            osc1.start();
+            osc2.start();
+            osc1.stop(audioCtx.currentTime + 0.5);
+            osc2.stop(audioCtx.currentTime + 0.5);
+        }
+
+        function playUpgradeSound() {
+            if (!audioCtx || !audioEnabled) return;
+
+            // Ascending arpeggio
+            const notes = [261.63, 329.63, 392, 523.25]; // C4, E4, G4, C5
+            notes.forEach((freq, i) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.value = freq;
+                gain.gain.setValueAtTime(0.08, audioCtx.currentTime + i * 0.08);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + i * 0.08 + 0.15);
+                osc.connect(gain);
+                gain.connect(masterGain);
+                osc.start(audioCtx.currentTime + i * 0.08);
+                osc.stop(audioCtx.currentTime + i * 0.08 + 0.15);
+            });
+        }
+
+        function updateDroneIntensity(massLevel) {
+            if (!droneGain || !droneOsc) return;
+
+            // Increase drone intensity with mass
+            const intensity = Math.min(0.3, 0.1 + Math.log10(massLevel + 1) * 0.05);
+            droneGain.gain.setTargetAtTime(intensity, audioCtx.currentTime, 0.5);
+
+            // Lower pitch as singularity grows
+            const freq = Math.max(25, 50 - Math.log10(massLevel + 1) * 5);
+            droneOsc.frequency.setTargetAtTime(freq, audioCtx.currentTime, 0.5);
+        }
+
+        function setupPostProcessing() {
+            composer = new THREE.EffectComposer(renderer);
+
+            const renderPass = new THREE.RenderPass(scene, camera);
+            composer.addPass(renderPass);
+
+            // Bloom pass for glowing effects
+            const bloomPass = new THREE.UnrealBloomPass(
+                new THREE.Vector2(window.innerWidth, window.innerHeight),
+                1.5, // strength
+                0.4, // radius
+                0.85 // threshold
+            );
+            composer.addPass(bloomPass);
+        }
+
+        function createSingularity() {
+            // Core black sphere
+            const geo = new THREE.SphereGeometry(0.5, 64, 64);
+            const mat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+            singularity = new THREE.Mesh(geo, mat);
+            scene.add(singularity);
+
+            // Outer glow
+            const glowGeo = new THREE.SphereGeometry(0.6, 64, 64);
+            const glowMat = new THREE.MeshBasicMaterial({
+                color: 0xff00ff,
+                transparent: true,
+                opacity: 0.2,
+                side: THREE.BackSide
+            });
+            glowMesh = new THREE.Mesh(glowGeo, glowMat);
+            singularity.add(glowMesh);
+
+            // Inner hot core
+            const coreGeo = new THREE.SphereGeometry(0.52, 32, 32);
+            const coreMat = new THREE.MeshBasicMaterial({
+                color: 0x4400ff,
+                transparent: true,
+                opacity: 0.5
+            });
+            const core = new THREE.Mesh(coreGeo, coreMat);
+            singularity.add(core);
+        }
+
+        function createParticles() {
+            const pGeo = new THREE.BufferGeometry();
+            const positions = new Float32Array(PARTICLE_COUNT * 3);
+            const colors = new Float32Array(PARTICLE_COUNT * 3);
+            particleVelocities = [];
+
+            for (let i = 0; i < PARTICLE_COUNT; i++) {
+                // Random spherical distribution
+                const radius = 2 + Math.random() * 8;
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos(2 * Math.random() - 1);
+
+                positions[i * 3] = radius * Math.sin(phi) * Math.cos(theta);
+                positions[i * 3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
+                positions[i * 3 + 2] = radius * Math.cos(phi);
+
+                // Initial color (cool blue)
+                colors[i * 3] = 0.2;
+                colors[i * 3 + 1] = 0.5;
+                colors[i * 3 + 2] = 1.0;
+
+                // Store velocity for each particle
+                particleVelocities.push({ vx: 0, vy: 0, vz: 0, speed: 0 });
+            }
+
+            pGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            pGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+            const pMat = new THREE.PointsMaterial({
+                size: 0.025,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.9,
+                sizeAttenuation: true
+            });
+
+            particles = new THREE.Points(pGeo, pMat);
+            scene.add(particles);
+        }
+
+        function createAccretionDisk() {
+            const diskGeo = new THREE.RingGeometry(0.7, 1.5, 64);
+            const diskMat = new THREE.MeshBasicMaterial({
+                color: 0xff6600,
+                transparent: true,
+                opacity: 0.15,
+                side: THREE.DoubleSide
+            });
+            accretionDisk = new THREE.Mesh(diskGeo, diskMat);
+            accretionDisk.rotation.x = Math.PI / 2;
+            singularity.add(accretionDisk);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            composer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function onMouseMove(event) {
+            mouseX = (event.clientX / window.innerWidth) * 2 - 1;
+            mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
+        }
+
+        function onClick(event) {
+            // Calculate click power
+            let clickPower = 1 + (state.upgrades.darkMatter.owned * state.upgrades.darkMatter.effect);
+            clickPower *= (1 + state.ascensionPoints * 0.1); // Ascension bonus
+
+            addMass(clickPower);
+
+            // Visual feedback - pulse singularity
+            singularity.scale.set(1.3, 1.3, 1.3);
+            glowMesh.material.opacity = 0.5;
+            setTimeout(() => {
+                singularity.scale.set(1, 1, 1);
+                glowMesh.material.opacity = 0.2;
+            }, 80);
+
+            // Spawn burst particles
+            spawnBurstParticles();
+
+            // Animate mass counter
+            const massEl = document.getElementById('mass');
+            massEl.classList.add('bump');
+            setTimeout(() => massEl.classList.remove('bump'), 100);
+
+            // Play click sound
+            playClickSound();
+        }
+
+        function spawnBurstParticles() {
+            // Quick velocity boost to nearby particles
+            const positions = particles.geometry.attributes.position.array;
+            for (let i = 0; i < 50; i++) {
+                const idx = Math.floor(Math.random() * PARTICLE_COUNT);
+                particleVelocities[idx].vx += (Math.random() - 0.5) * 0.1;
+                particleVelocities[idx].vy += (Math.random() - 0.5) * 0.1;
+                particleVelocities[idx].vz += (Math.random() - 0.5) * 0.1;
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // GAME LOGIC
+        // ═══════════════════════════════════════════════════════════════════
+        function addMass(amount, skipMultiplier = false) {
+            const mult = skipMultiplier ? 1 : getEventMultiplier('mass');
+            state.mass += amount * mult;
+            state.totalMass += amount * mult;
+            state.totalAllTime += amount * mult;
+            updateUI();
+            checkMilestones();
+            checkAchievements();
+        }
+
+        function getMPS() {
+            let mps = 0;
+            mps += state.upgrades.graviton.owned * state.upgrades.graviton.effect;
+            mps += state.upgrades.shadow.owned * state.upgrades.shadow.effect;
+            mps += state.upgrades.collapse.owned * state.upgrades.collapse.effect;
+            mps += state.upgrades.quasar.owned * state.upgrades.quasar.effect;
+            mps += state.upgrades.void.owned * state.upgrades.void.effect;
+            mps *= (1 + state.ascensionPoints * 0.1); // Ascension bonus
+            mps *= getEventMultiplier('mass'); // Event multiplier
+            return mps;
+        }
+
+        function updateUI() {
+            // Animated number update
+            animateNumber('mass', Math.floor(state.mass));
+            document.getElementById('totalMass').innerText = formatNumber(state.totalAllTime);
+            document.getElementById('mps').innerText = formatNumber(getMPS()) + ' /s';
+            document.getElementById('ascensions').innerText = state.ascensions;
+
+            // Update distortion level
+            const distortionLevels = ['STABLE', 'WARPING', 'COLLAPSING', 'DEVOURING', 'ABSOLUTE'];
+            const level = Math.min(Math.floor(Math.log10(state.totalMass + 1)), distortionLevels.length - 1);
+            document.getElementById('distortion').innerText = distortionLevels[Math.max(0, level)];
+
+            // Update prestige button
+            const ap = calculateAscensionPoints();
+            const btn = document.getElementById('prestigeBtn');
+            btn.innerText = `⚡ ASCEND (${ap} AP)`;
+            btn.disabled = ap < 1;
+
+            // Update upgrade affordability
+            renderUpgrades();
+        }
+
+        function animateNumber(elementId, targetValue) {
+            const el = document.getElementById(elementId);
+            el.innerText = formatNumber(targetValue);
+        }
+
+        function formatNumber(num) {
+            if (num >= 1e12) return (num / 1e12).toFixed(2) + 'T';
+            if (num >= 1e9) return (num / 1e9).toFixed(2) + 'B';
+            if (num >= 1e6) return (num / 1e6).toFixed(2) + 'M';
+            if (num >= 1e3) return (num / 1e3).toFixed(2) + 'K';
+            return Math.floor(num).toString();
+        }
+
+        function renderUpgrades() {
+            const container = document.getElementById('upgrades');
+            container.innerHTML = '';
+
+            Object.keys(state.upgrades).forEach(id => {
+                const up = state.upgrades[id];
+                const affordable = state.mass >= up.cost;
+                const card = document.createElement('div');
+                card.className = 'upgrade-card' + (affordable ? ' affordable' : '');
+                card.innerHTML = `
+                    <h3>${up.icon} ${up.name} <span class="count">${up.owned}</span></h3>
+                    <p>${up.desc}</p>
+                    <div class="cost">Cost: ${formatNumber(up.cost)}</div>
+                    ${id !== 'darkMatter' ? `<div class="effect">+${up.effect}/s each</div>` : ''}
+                `;
+                card.onclick = () => buyUpgrade(id);
+                container.appendChild(card);
+            });
+        }
+
+        function buyUpgrade(id) {
+            const up = state.upgrades[id];
+            if (state.mass >= up.cost) {
+                state.mass -= up.cost;
+                up.owned++;
+                up.cost = Math.floor(up.baseCost * Math.pow(1.15, up.owned));
+                renderUpgrades();
+                updateUI();
+                showNarrative(`${up.icon} ${up.name} acquired...`);
+                playUpgradeSound();
+            }
+        }
+
+        function calculateAscensionPoints() {
+            return Math.floor(Math.pow(state.totalMass / 1000000, 0.5));
+        }
+
+        function prestige() {
+            const ap = calculateAscensionPoints();
+            if (ap < 1) return;
+
+            state.ascensions++;
+            state.ascensionPoints += ap;
+            state.mass = 0;
+            state.totalMass = 0;
+
+            // Reset upgrades
+            Object.keys(state.upgrades).forEach(id => {
+                state.upgrades[id].owned = 0;
+                state.upgrades[id].cost = state.upgrades[id].baseCost;
+            });
+
+            // Reset milestones for this run
+            state.milestones.forEach(m => m.achieved = false);
+
+            updateUI();
+            showNarrative(`⚡ ASCENDED! You gained ${ap} Ascension Points. Everything is reborn.`);
+            showAchievement(`Ascension #${state.ascensions}`);
+        }
+
+        function checkMilestones() {
+            state.milestones.forEach(m => {
+                if (!m.achieved && state.totalMass >= m.mass) {
+                    m.achieved = true;
+                    showNarrative(m.msg);
+                }
+            });
+
+            // Check for game ending
+            if (state.totalMass >= 10000000) {
+                document.getElementById('ending').style.display = 'flex';
+                setTimeout(() => {
+                    state.totalMass = 0;
+                    state.mass = 0;
+                    Object.keys(state.upgrades).forEach(id => {
+                        state.upgrades[id].owned = 0;
+                        state.upgrades[id].cost = state.upgrades[id].baseCost;
+                    });
+                    document.getElementById('ending').style.display = 'none';
+                    showNarrative("Reality resets. The hunger begins anew.");
+                    updateUI();
+                }, 5000);
+            }
+        }
+
+        function checkAchievements() {
+            const achievements = {
+                'first_click': { condition: state.totalAllTime >= 1, text: 'First Consumption' },
+                'hundred': { condition: state.totalAllTime >= 100, text: 'Hundred Mass' },
+                'thousand': { condition: state.totalAllTime >= 1000, text: 'Thousand Mass' },
+                'million': { condition: state.totalAllTime >= 1000000, text: 'Millionaire' },
+                'first_graviton': { condition: state.upgrades.graviton.owned >= 1, text: 'Passive Income' },
+                'ten_gravitons': { condition: state.upgrades.graviton.owned >= 10, text: 'Graviton Master' },
+            };
+
+            Object.keys(achievements).forEach(id => {
+                const a = achievements[id];
+                if (!state.achievements[id] && a.condition) {
+                    state.achievements[id] = true;
+                    showAchievement(a.text);
+                }
+            });
+        }
+
+        function showNarrative(msg) {
+            const el = document.getElementById('narrative');
+            el.innerText = msg;
+            el.classList.add('visible');
+            setTimeout(() => el.classList.remove('visible'), 4000);
+        }
+
+        function showAchievement(text) {
+            const el = document.getElementById('achievement');
+            document.getElementById('achievementText').innerText = text;
+            el.classList.add('visible');
+            setTimeout(() => el.classList.remove('visible'), 3000);
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // DYNAMIC EVENTS SYSTEM
+        // ═══════════════════════════════════════════════════════════════════
+        function tryTriggerEvent() {
+            if (state.activeEvent) return; // Already have an active event
+            if (state.totalMass < 50) return; // Need some progress first
+
+            // Check each event's chance
+            Object.keys(state.events).forEach(id => {
+                if (!state.activeEvent && Math.random() < state.events[id].chance / 60) {
+                    activateEvent(id);
+                }
+            });
+        }
+
+        function activateEvent(eventId) {
+            const event = state.events[eventId];
+            state.activeEvent = eventId;
+            state.eventEndTime = Date.now() + event.duration;
+
+            // Update banner
+            const banner = document.getElementById('eventBanner');
+            banner.querySelector('.event-icon').innerText = event.name.split(' ')[0];
+            banner.querySelector('.event-name').innerText = event.name.split(' ').slice(1).join(' ');
+            banner.querySelector('.event-desc').innerText = event.desc;
+            banner.style.borderColor = event.color;
+            banner.style.boxShadow = `0 0 30px ${event.color}80`;
+            banner.classList.add('active');
+
+            // Visual flash and sound
+            document.body.style.background = event.color;
+            setTimeout(() => document.body.style.background = 'var(--bg)', 100);
+            playEventSound(event.color);
+
+            showNarrative(`⚡ ${event.name}: ${event.desc}`);
+        }
+
+        function updateEvent() {
+            if (!state.activeEvent) return;
+
+            const remaining = Math.max(0, state.eventEndTime - Date.now());
+            const seconds = Math.ceil(remaining / 1000);
+
+            document.getElementById('eventBanner').querySelector('.event-timer').innerText = `${seconds}s`;
+
+            if (remaining <= 0) {
+                endEvent();
+            }
+        }
+
+        function endEvent() {
+            state.activeEvent = null;
+            state.eventEndTime = 0;
+            document.getElementById('eventBanner').classList.remove('active');
+            showNarrative('The cosmic disturbance fades...');
+        }
+
+        function getEventMultiplier(type) {
+            if (!state.activeEvent) return 1;
+            const event = state.events[state.activeEvent];
+            if (type === 'mass' && event.multiplier) return event.multiplier;
+            if (type === 'click' && event.clickMult) return event.clickMult;
+            if (type === 'spawn' && event.spawnMult) return event.spawnMult;
+            return 1;
+        }
+
+        function getEventCostMultiplier() {
+            if (!state.activeEvent) return 1;
+            const event = state.events[state.activeEvent];
+            return event.costMult || 1;
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // ANIMATION LOOP
+        // ═══════════════════════════════════════════════════════════════════
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const now = Date.now();
+            const delta = (now - state.lastUpdate) / 1000;
+            state.lastUpdate = now;
+
+            // Passive income
+            const mps = getMPS();
+            if (mps > 0) {
+                addMass(mps * delta, true); // skipMultiplier since getMPS already applies it
+            }
+
+            // Dynamic Events
+            tryTriggerEvent();
+            updateEvent();
+
+            // Update ambient audio
+            updateDroneIntensity(state.mass);
+
+            // Rotate accretion disk
+            if (accretionDisk) {
+                accretionDisk.rotation.z += 0.02;
+            }
+
+            // Singularity follows mouse smoothly
+            singularity.position.x += (mouseX * 0.8 - singularity.position.x) * 0.05;
+            singularity.position.y += (mouseY * 0.8 - singularity.position.y) * 0.05;
+
+            // Pulsing glow based on mass
+            const pulseScale = 1 + Math.sin(now * 0.003) * 0.1 * (1 + Math.log10(state.mass + 1) * 0.05);
+            glowMesh.scale.set(pulseScale, pulseScale, pulseScale);
+
+            // Update particles with gravity and velocity-based coloring
+            updateParticles(delta);
+
+            // Render with post-processing
+            composer.render();
+        }
+
+        function updateParticles(delta) {
+            const positions = particles.geometry.attributes.position.array;
+            const colors = particles.geometry.attributes.color.array;
+            const gravityStrength = 0.5 + Math.log10(state.mass + 1) * 0.1;
+
+            for (let i = 0; i < PARTICLE_COUNT; i++) {
+                const idx = i * 3;
+                const px = positions[idx];
+                const py = positions[idx + 1];
+                const pz = positions[idx + 2];
+
+                // Calculate direction to singularity
+                const dx = singularity.position.x - px;
+                const dy = singularity.position.y - py;
+                const dz = singularity.position.z - pz;
+                const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+                if (dist > 0.6) {
+                    // Apply gravity acceleration
+                    const force = gravityStrength / (dist * dist);
+                    particleVelocities[i].vx += (dx / dist) * force * delta;
+                    particleVelocities[i].vy += (dy / dist) * force * delta;
+                    particleVelocities[i].vz += (dz / dist) * force * delta;
+
+                    // Add slight orbital motion
+                    particleVelocities[i].vx += -dy * 0.001;
+                    particleVelocities[i].vy += dx * 0.001;
+
+                    // Apply velocity
+                    positions[idx] += particleVelocities[i].vx;
+                    positions[idx + 1] += particleVelocities[i].vy;
+                    positions[idx + 2] += particleVelocities[i].vz;
+
+                    // Calculate speed for coloring
+                    const speed = Math.sqrt(
+                        particleVelocities[i].vx ** 2 +
+                        particleVelocities[i].vy ** 2 +
+                        particleVelocities[i].vz ** 2
+                    );
+                    particleVelocities[i].speed = speed;
+
+                    // Velocity-based coloring: blue (slow) → white → orange/red (fast)
+                    const t = Math.min(speed * 20, 1);
+                    if (t < 0.5) {
+                        // Blue to white
+                        colors[idx] = 0.3 + t * 1.4;
+                        colors[idx + 1] = 0.5 + t * 1.0;
+                        colors[idx + 2] = 1.0;
+                    } else {
+                        // White to orange/red
+                        const t2 = (t - 0.5) * 2;
+                        colors[idx] = 1.0;
+                        colors[idx + 1] = 1.0 - t2 * 0.6;
+                        colors[idx + 2] = 1.0 - t2 * 0.9;
+                    }
+
+                } else {
+                    // Particle consumed - respawn far away
+                    const radius = 5 + Math.random() * 5;
+                    const theta = Math.random() * Math.PI * 2;
+                    const phi = Math.acos(2 * Math.random() - 1);
+
+                    positions[idx] = radius * Math.sin(phi) * Math.cos(theta);
+                    positions[idx + 1] = radius * Math.sin(phi) * Math.sin(theta);
+                    positions[idx + 2] = radius * Math.cos(phi);
+
+                    // Reset velocity
+                    particleVelocities[i] = { vx: 0, vy: 0, vz: 0, speed: 0 };
+
+                    // Reset color to cool blue
+                    colors[idx] = 0.2;
+                    colors[idx + 1] = 0.5;
+                    colors[idx + 2] = 1.0;
+
+                    // Passive mass gain from consuming particles
+                    addMass(0.005 * (1 + state.ascensionPoints * 0.1));
+                }
+            }
+
+            particles.geometry.attributes.position.needsUpdate = true;
+            particles.geometry.attributes.color.needsUpdate = true;
+        }
+
+        // Initialize
+        init();
+    </script>
+</body>
+
+</html>

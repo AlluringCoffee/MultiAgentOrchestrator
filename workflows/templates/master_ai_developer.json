@@ -1,0 +1,92 @@
+{
+    "name": "Master AI Developer Team",
+    "description": "The ultimate autonomous coding workflow with self-repair and tool access.",
+    "nodes": {
+        "architect": {
+            "id": "architect",
+            "name": "Systems Architect",
+            "type": "agent",
+            "x": 100,
+            "y": 200,
+            "persona": "You are a Systems Architect. Design robust, scalable architectures. Use tool tags if needed.",
+            "provider": "ollama",
+            "model": "deepseek-r1",
+            "internet_access": true,
+            "tier": "free"
+        },
+        "developer": {
+            "id": "developer",
+            "name": "Lead Developer",
+            "type": "agent",
+            "x": 400,
+            "y": 200,
+            "persona": "You are a lead developer. Implement the architect's design. Use <write_file> and <run_command>.",
+            "provider": "ollama",
+            "model": "deepseek-r1",
+            "internet_access": true,
+            "tier": "free"
+        },
+        "tester": {
+            "id": "tester",
+            "name": "QA Engineer",
+            "type": "agent",
+            "x": 700,
+            "y": 200,
+            "persona": "You are a QA Engineer. Run tests and report failures. If a failure persists, request repair.",
+            "provider": "ollama",
+            "model": "deepseek-r1",
+            "internet_access": true,
+            "tier": "free"
+        },
+        "optimizer": {
+            "id": "optimizer",
+            "name": "Orchestrator Optimizer",
+            "type": "optimizer",
+            "x": 700,
+            "y": 450,
+            "persona": "Monitor the QA Engineer. On persistent failure, upgrade Lead Developer to 'paid' tier and trigger repair.",
+            "provider": "groq",
+            "model": "llama-3.1-70b-versatile",
+            "tier": "paid"
+        },
+        "director": {
+            "id": "director",
+            "name": "Project Director",
+            "type": "director",
+            "x": 1000,
+            "y": 200,
+            "persona": "Review the test results and final code. Approve for final deployment.",
+            "requires_approval": true,
+            "return_event_bubble": true
+        }
+    },
+    "edges": [
+        {
+            "source": "architect",
+            "target": "developer"
+        },
+        {
+            "source": "developer",
+            "target": "tester"
+        },
+        {
+            "source": "tester",
+            "target": "optimizer"
+        },
+        {
+            "source": "tester",
+            "target": "director"
+        }
+    ],
+    "groups": {
+        "group1": {
+            "id": "group1",
+            "name": "Dev Loop",
+            "x": 350,
+            "y": 150,
+            "width": 750,
+            "height": 450,
+            "color": "var(--accent-primary)"
+        }
+    }
+}

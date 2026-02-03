@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Multi-Agent Orchestrator</title>
+  <meta name="description" content="Visual multi-agent workflow designer with multi-LLM support">
+
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: filesystem: ws: wss: http: https:; img-src 'self' data: blob: https:; font-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net;">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet">
+
+  <!-- Favicon -->
+  <link rel="icon" href="/favicon.ico" type="image/x-icon">
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="/static/styles.css">
+
+  <!-- Markdown Parser -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    .tab-btn.active {
+      color: var(--text-primary) !important;
+      border-bottom: 2px solid var(--primary-color) !important;
+      font-weight: 600;
+    }
+
+    .result-item {
+      background: var(--bg-primary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 15px;
+    }
+
+    .result-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 8px;
+    }
+
+    .result-node-name {
+      font-weight: bold;
+      color: var(--primary-color);
+    }
+
+    .result-body h1,
+    .result-body h2,
+    .result-body h3 {
+      margin-top: 10px;
+      font-size: 1.1em;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app-layout">
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    <!-- Top Toolbar -->
+    <header class="toolbar">
+      <div class="toolbar-left">
+        <button class="btn-icon mobile-toggle" id="toggleSidebarsBtn" aria-label="Toggle Sidebars">☰</button>
+        <h1 class="logo">🤖 Agent Orchestrator</h1>
+        <div class="connection-status">
+          <span class="status-dot" id="connectionDot"></span>
+          <span id="connectionText">Connecting...</span>
+        </div>
+      </div>
+      <div class="toolbar-center">
+        <input type="text" class="workflow-name-input" id="workflowName" value="New Workflow"
+          placeholder="Workflow Name">
+      </div>
+      <div class="toolbar-right">
+        <!-- Canvas Group -->
+        <div class="toolbar-group">
+          <button class="btn btn-ghost btn-sm" id="tidyBtn" title="Auto-Layout">🧹 Tidy</button>
+          <button class="btn btn-ghost btn-sm" id="fitViewBtn" title="Fit View">🔍 Fit</button>
+          <button class="btn btn-ghost btn-sm" id="smartConnectBtn" title="Smart Connect">🧠 Smart</button>
+        </div>
+
+        <!-- AI Group -->
+        <div class="toolbar-group">
+          <button class="btn btn-magic btn-sm" id="magicAutoBtn" title="AI Workflow Generator">✨ Magic</button>
+          <button class="btn btn-ghost btn-sm" id="expertModeBtn" title="Toggle Expert UI & HUD">🚀 Expert</button>
+        </div>
+
+        <!-- Project Group -->
+        <div class="toolbar-group">
+          <button class="btn btn-ghost btn-sm" id="saveWorkflowBtn" title="Save Workflow">Save</button>
+          <button class="btn btn-ghost btn-sm" id="loadWorkflowBtn" title="Load Workflow">Load</button>
+          <button class="btn btn-ghost btn-sm" id="exportWorkflowBtn" title="Export Code">Export</button>
+        </div>
+
+        <!-- Danger Zone (collapsed) -->
+        <div class="toolbar-group toolbar-group-muted">
+          <button class="btn btn-ghost btn-sm" id="clearCanvasBtn" title="Clear Canvas"
+            data-tooltip="Remove all nodes and edges (keeps settings)">🗑️ Clear</button>
+          <button class="btn btn-outline-danger btn-sm" id="factoryResetBtn" title="Factory Reset"
+            data-tooltip="Wipe everything including local storage">Reset</button>
+          <button class="btn btn-ghost btn-sm active" id="toggleTooltipsBtn" title="Toggle Tooltips">💬 On</button>
+          <button class="btn btn-ghost btn-sm" id="helpBtn" title="Help">?</button>
+        </div>
+
+        <div class="toolbar-separator"></div>
+
+        <!-- Execution Group (Primary) -->
+        <div class="toolbar-group toolbar-group-primary">
+          <button class="btn btn-secondary btn-sm" id="deployWorkflowBtn" title="Deploy Container"
+            data-tooltip="Package this workflow as a Docker container">🐳 Deploy</button>
+          <button class="btn btn-primary btn-lg btn-glow" id="runWorkflowBtn"
+            data-tooltip="Start executing the current workflow">▶️ Run</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="main-content">
+      <!-- Usage HUD overlay -->
+      <div class="usage-hud">
+        <div class="hud-item">
+          <span class="hud-label">Tokens</span>
+          <span class="hud-value" id="hudTokens">0</span>
+        </div>
+        <div class="hud-item">
+          <span class="hud-label">Nodes</span>
+          <span class="hud-value" id="hudNodes">0</span>
+        </div>
+        <div class="hud-item">
+          <span class="hud-label">Cost</span>
+          <span class="hud-value" id="hudCost">$0.00</span>
+        </div>
+      </div>
+      <!-- Left Sidebar: Agent Palette -->
+      <aside class="sidebar sidebar-left" id="sidebarLeft">
+        <div class="sidebar-header">
+          <h3>📦 Agent Palette</h3>
+          <button class="btn-icon sidebar-collapse-btn" id="collapseLeftBtn" title="Collapse Sidebar">
+            <span class="icon-chevron"></span>
+          </button>
+        </div>
+        <div class="sidebar-search">
+          <input type="search" id="paletteSearch" placeholder="Search components..."
+            aria-label="Search agents and tools">
+        </div>
+        <div class="agent-palette" id="agentPalette">
+          <!-- Core Nodes -->
+          <div class="palette-group">
+            <span class="palette-group-title">Core & I/O</span>
+            <div class="palette-row">
+              <div class="palette-item" data-type="agent" draggable="true" title="Standard LLM Agent">
+                <span class="palette-icon">🤖</span>
+                <span class="palette-label">Agent</span>
+              </div>
+              <div class="palette-item" data-type="input" draggable="true" title="User Input">
+                <span class="palette-icon">📥</span>
+                <span class="palette-label">Input</span>
+              </div>
+              <div class="palette-item" data-type="output" draggable="true" title="File Output">
+                <span class="palette-icon">📤</span>
+                <span class="palette-label">Output</span>
+              </div>
+            </div>
+            <div class="palette-row">
+              <div class="palette-item" data-type="router" draggable="true" title="Content Router">
+                <span class="palette-icon">🔀</span>
+                <span class="palette-label">Router</span>
+              </div>
+              <div class="palette-item" data-type="director" draggable="true" title="Human-in-the-loop Director">
+                <span class="palette-icon">🎬</span>
+                <span class="palette-label">Director</span>
+              </div>
+              <div class="palette-item" data-type="optimizer" draggable="true" title="Optimization Agent">
+                <span class="palette-icon">⚙️</span>
+                <span class="palette-label">Optimizer</span>
+              </div>
+            </div>
+            <div class="palette-row">
+              <div class="palette-item" data-type="script" draggable="true" title="Python Logic Script"
+                data-name="Script Node" data-icon="🐍">
+                <span class="palette-icon">🐍</span>
+                <span class="palette-label">Script</span>
+              </div>
+              <div class="palette-item" data-type="memory" draggable="true" title="Long-Term Memory"
+                data-name="Memory Node" data-icon="🧠">
+                <span class="palette-icon">🧠</span>
+                <span class="palette-label">Memory</span>
+              </div>
+              <div class="palette-item" data-type="http" draggable="true" title="HTTP Request" data-name="Http Request"
+                data-icon="🌐">
+                <span class="palette-icon">🌐</span>
+                <span class="palette-label">Http</span>
+              </div>
+              <div class="palette-item" data-type="openapi" draggable="true" title="OpenAPI Client"
+                data-name="OpenAPI Client" data-icon="📜">
+                <span class="palette-icon">📜</span>
+                <span class="palette-label">OpenAPI</span>
+              </div>
+              <div class="palette-item" data-type="notion" draggable="true" title="Notion Integration"
+                data-name="Notion Connector" data-icon="📝">
+                <span class="palette-icon">📝</span>
+                <span class="palette-label">Notion</span>
+              </div>
+              <div class="palette-item" data-type="google" draggable="true" title="Google Suite"
+                data-name="Google Workspace" data-icon="📧">
+                <span class="palette-icon">📧</span>
+                <span class="palette-label">Google</span>
+              </div>
+            </div>
+          </div>
+          <!-- Utility Tools (Group & Reroute) -->
+          <div class="palette-group expanded">
+            <span class="palette-group-title">Utilities</span>
+            <div class="palette-row">
+              <div class="palette-item" data-type="group" draggable="true" title="Visual Group Box">
+                <span class="palette-icon">📦</span>
+                <span class="palette-label">Group</span>
+              </div>
+              <div class="palette-item" data-type="reroute" draggable="true" title="Cable Manager">
+                <span class="palette-icon">🔴</span>
+                <span class="palette-label">Reroute</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Developer Tools (CLI) -->
+          <div class="palette-group">
+            <span class="palette-group-title">CLI Tools (Developer)</span>
+            <div class="palette-item" data-type="github" data-name="Git Manager" data-icon="🐙"
+              data-persona="System: Git Integration Node." draggable="true">
+              <span class="palette-icon">🐙</span> <span class="palette-label">Git Manager</span>
+            </div>
+            <div class="palette-item" data-type="huggingface" data-name="HF Hub" data-icon="🤗"
+              data-persona="System: Hugging Face Hub Node." draggable="true">
+              <span class="palette-icon">🤗</span> <span class="palette-label">HF Hub</span>
+            </div>
+            <div class="palette-item" data-type="script" data-name="Terminal" data-icon="💻"
+              data-script_code="# Execute CLI command&#10;cmd = 'dir'&#10;res = cli.execute(cmd)&#10;output = res['stdout']"
+              draggable="true" title="Execute terminal commands">
+              <span class="palette-icon">💻</span> <span class="palette-label">Terminal</span>
+            </div>
+            <div class="palette-item" data-type="script" data-name="Aider Engine" data-icon="🛠️"
+              data-persona="Role: Aider CLI Agent. Specialized in pair programming, multi-file refactoring, and git integration."
+              data-provider="cli" data-model="aider" draggable="true">
+              <span class="palette-icon">🛠️</span> <span class="palette-label">Aider CLI</span>
+            </div>
+            <div class="palette-item" data-type="script" data-name="Claude Code" data-icon="🐚"
+              data-persona="Role: Claude Code CLI. Optimized for terminal-based codebase exploration and complex refactors."
+              data-provider="cli" data-model="claude-code" draggable="true">
+              <span class="palette-icon">🐚</span> <span class="palette-label">Claude Code</span>
+            </div>
+            <div class="palette-item" data-type="agent" data-name="Ollama Local" data-icon="🦙"
+              data-persona="Role: Ollama CLI Wrapper. Run specialized local models directly via the command line."
+              data-provider="ollama" data-model="default" draggable="true">
+              <span class="palette-icon">🦙</span> <span class="palette-label">Ollama CLI</span>
+            </div>
+            <div class="palette-item" data-type="script" data-name="Fabric Context" data-icon="🧶"
+              data-persona="Role: Fabric CLI Agent. Augment human intelligence by extracting wisdom from content using AI 'patterns'."
+              data-provider="cli" data-model="fabric" draggable="true">
+              <span class="palette-icon">🧶</span> <span class="palette-label">Fabric CLI</span>
+            </div>
+          </div>
+
+
+          <!-- Critics & Auditors -->
+          <div class="palette-group">
+            <span class="palette-group-title">Council of Critics</span>
+
+            <!-- Creative Section -->
+            <div class="palette-subgroup">
+              <span class="palette-subgroup-title">Creative Arcs</span>
+              <div class="palette-item" data-type="auditor" data-name="Story Critic" data-icon="📖"
+                data-persona="Story Structure" draggable="true">
+                <span class="palette-icon">📖</span> <span class="palette-label">Story Structure</span>
+              </div>
+              <div class="palette-item" data-type="auditor" data-name="Character Critic" data-icon="👤"
+                data-persona="Character Arc" draggable="true">
+                <span class="palette-icon">👤</span> <span class="palette-label">Character Arc</span>
+              </div>
+              <div class="palette-item" data-type="auditor" data-name="Dialogue Critic" data-icon="💬"
+                data-persona="Dialogue" draggable="true">
+                <span class="palette-icon">💬</span> <span class="palette-label">Dialogue Flow</span>
+              </div>
+            </div>
+
+            <!-- Technical Section -->
+            <div class="palette-subgroup">
+              <span class="palette-subgroup-title">Technical Quality</span>
+              <div class="palette-item" data-type="auditor" data-name="Code Critic" data-icon="💻"
+                data-persona="Code Quality" draggable="true">
+                <span class="palette-icon">💻</span> <span class="palette-label">Code Quality</span>
+              </div>
+              <div class="palette-item" data-type="auditor" data-name="Security Critic" data-icon="🛡️"
+                data-persona="Security" draggable="true">
+                <span class="palette-icon">🛡️</span> <span class="palette-label">Security</span>
+              </div>
+              <div class="palette-item" data-type="auditor" data-name="Perf Critic" data-icon="⚡"
+                data-persona="Performance" draggable="true">
+                <span class="palette-icon">⚡</span> <span class="palette-label">Performance</span>
+              </div>
+            </div>
+
+            <!-- Domain Experts -->
+            <div class="palette-subgroup">
+              <span class="palette-subgroup-title">Domain Expertise</span>
+              <div class="palette-item" data-type="auditor" data-name="Science Critic" data-icon="🔬"
+                data-persona="Science" draggable="true">
+                <span class="palette-icon">🔬</span> <span class="palette-label">Hard Science</span>
+              </div>
+              <div class="palette-item" data-type="auditor" data-name="Psych Critic" data-icon="🧠"
+                data-persona="Psychology" draggable="true">
+                <span class="palette-icon">🧠</span> <span class="palette-label">Psychology</span>
+              </div>
+              <div class="palette-item" data-type="auditor" data-name="Legal Critic" data-icon="⚖️" data-persona="Legal"
+                draggable="true">
+                <span class="palette-icon">⚖️</span> <span class="palette-label">Legal</span>
+              </div>
+            </div>
+
+            <!-- Experience & Abstract -->
+            <div class="palette-subgroup">
+              <span class="palette-subgroup-title">Experience & Ethics</span>
+              <div class="palette-item" data-type="auditor" data-name="UX Critic" data-icon="🖱️" data-persona="UX/UI"
+                draggable="true">
+                <span class="palette-icon">🖱️</span> <span class="palette-label">UX/UI</span>
+              </div>
+              <div class="palette-item" data-type="auditor" data-name="Ethics Critic" data-icon="🤝"
+                data-persona="Ethics" draggable="true">
+                <span class="palette-icon">🤝</span> <span class="palette-label">Ethics</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="sidebar-header mt-md">
+          <h3>🔌 Providers</h3>
+          <button class="btn-icon ml-auto" id="manageProvidersBtn" title="Manage Providers">⚙️</button>
+        </div>
+        <div class="provider-status" id="providerStatus">
+          <!-- Content injected by app.js -->
+        </div>
+      </aside>
+
+      <!-- Resizer Left -->
+      <div class="resizer" id="resizerLeft"></div>
+
+      <!-- Center: Visual Canvas -->
+      <main class="canvas-container" id="canvasContainer">
+        <!-- Canvas will be injected by canvas.js -->
+      </main>
+
+      <!-- Resizer Right -->
+      <div class="resizer resizer-right" id="resizerRight"></div>
+
+      <!-- Right Sidebar: Observability Hub -->
+      <aside class="sidebar sidebar-right" id="sidebarRight">
+        <div class="sidebar-column" id="sidebarRightEditor">
+          <div class="sidebar-tabs">
+            <button class="tab-btn active" data-tab="config">Editor</button>
+            <button class="tab-btn" data-tab="trace">Trace Tree</button>
+            <button class="tab-btn" data-tab="blackboard">Blackboard</button>
+            <button class="tab-btn" data-tab="results">Results</button>
+          </div>
+
+          <!-- Node Editor Tab -->
+          <div class="tab-content" id="configTab">
+            <div id="nodeEditorContainer">
+              <div class="empty-state">
+                <p>Select a node to configure</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Trace Tree Tab -->
+          <div class="tab-content ui-hidden" id="traceTab">
+            <div class="sidebar-header flex-between">
+              <h3>🌳 Trace Tree</h3>
+              <button class="btn btn-sm btn-secondary" id="clearTraceBtn">Clear</button>
+            </div>
+            <div class="trace-tree-content" id="traceTreeContent">
+              <div class="empty-state">No execution trace found</div>
+            </div>
+          </div>
+
+          <!-- Blackboard Tab -->
+          <div class="tab-content ui-hidden" id="blackboardTab">
+            <div class="sidebar-header flex-between">
+              <h3>Blackboard</h3>
+              <button class="btn btn-sm btn-secondary" id="clearBlackboardBtn">Clear</button>
+            </div>
+            <div class="blackboard-content" id="blackboardContent">
+              <table class="blackboard-table">
+                <thead>
+                  <tr>
+                    <th>Key</th>
+                    <th>Value</th>
+                  </tr>
+                </thead>
+                <tbody id="blackboardBody">
+                  <!-- Dynamic rows -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Results Tab -->
+          <div class="tab-content ui-hidden" id="resultsTab">
+            <div class="sidebar-header flex-between">
+              <h3>🏁 Final Results</h3>
+              <button class="btn btn-sm btn-secondary" id="clearResultsBtn">Clear</button>
+            </div>
+            <div class="results-content results-content-scroll" id="resultsPanel">
+              <div class="empty-state">Results appear here.</div>
+            </div>
+          </div>
+
+          <button class="btn-icon sidebar-collapse-btn sidebar-collapse-right" id="collapseRightBtn"
+            title="Collapse Sidebar">
+            <span class="icon-chevron"></span>
+          </button>
+        </div>
+
+        <!-- Internal Resizer (between Editor and Logs) -->
+        <div class="resizer resizer-internal" id="resizerRightInternal"></div>
+
+        <div class="sidebar-column" id="sidebarRightLogs">
+          <!-- Execution Logs moved here -->
+          <div class="panel panel-logs">
+            <div class="panel-header">
+              <h3>📋 Execution Log</h3>
+              <button class="btn-icon" id="clearLogsBtn">🗑️</button>
+            </div>
+            <div class="log-container" id="logContainer">
+              <div class="empty-state" id="emptyState">
+                <p>Run a workflow to see logs</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Bottom Drawer: Live Execution & Logs -->
+      <div class="bottom-drawer" id="bottomDrawer">
+        <div class="drawer-handle" id="drawerHandle">
+          <div class="drawer-handle-grabber"></div>
+          <div class="drawer-title-group">
+            <span class="drawer-handle-icon">⚡</span>
+            <span class="drawer-title">Live Execution</span>
+          </div>
+          <div class="drawer-controls">
+            <button class="btn btn-sm btn-ghost" id="toggleDrawerBtn" title="Expand/Collapse">
+              <span class="icon-chevron-up"></span>
+            </button>
+          </div>
+        </div>
+
+        <div class="drawer-content" id="drawerContent">
+          <div class="execution-controls-row">
+            <div class="active-node-display">
+              <span class="label">Active:</span>
+              <span class="active-node-name" id="activeNodeName">—</span>
+            </div>
+            <div class="execution-progress-mini">
+              <div class="progress-bar" id="executionProgress"></div>
+            </div>
+            <div class="execution-buttons">
+              <button class="btn btn-sm btn-warning" id="pauseWorkflowBtn" title="Pause">⏸️</button>
+              <button class="btn btn-sm btn-danger" id="stopWorkflowBtn" title="Stop">⏹️</button>
+              <button class="btn btn-sm btn-primary" id="interveneBtn" title="Intervene" disabled>✋</button>
+            </div>
+          </div>
+
+          <div class="live-output-container" id="liveOutputContainer">
+            <div class="live-output-header">
+              <span class="output-label">Streaming Output</span>
+              <span class="output-node" id="outputNodeLabel">—</span>
+            </div>
+            <div class="live-output" id="liveOutput"></div>
+          </div>
+
+          <!-- Timeline Scrubber -->
+          <div class="timeline-scrubber" id="timelineScrubber">
+            <div class="timeline-header">
+              History & Time Travel
+            </div>
+            <div class="timeline-track" id="timelineTrack">
+              <!-- Dynamic steps -->
+            </div>
+            <div class="timeline-controls">
+              <button class="btn btn-sm btn-secondary" id="replayBtn" disabled>⏪ Replay from selected</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- Mission Input Modal -->
+      <div class="modal" id="missionModal">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3>🚀 Start Workflow</h3>
+            <button class="btn-close" id="closeMissionModal">×</button>
+          </div>
+          <div class="modal-body">
+            <label for="missionInput">Enter your mission prompt:</label>
+            <textarea id="missionInput" rows="4"
+              placeholder="e.g., Write a sci-fi short story about a robot who discovers gardening, with a focus on emotional growth."></textarea>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" id="cancelMission">Cancel</button>
+            <button class="btn btn-primary" id="startMission">Start Mission</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Result Banner -->
+      <div class="result-banner" id="resultBanner">
+        <div class="result-icon" id="resultIcon"></div>
+        <div class="result-text">
+          <div class="result-title" id="resultTitle"></div>
+          <div class="result-message" id="resultMessage"></div>
+        </div>
+        <button class="btn-close" id="closeResult">×</button>
+      </div>
+    </div>
+
+    <!-- Path Guidance Modal -->
+    <div class="modal hidden" id="guidanceModal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>📂 Project Navigation Hint</h3>
+          <button class="btn-close" id="closeGuidanceModal">×</button>
+        </div>
+        <div class="modal-body">
+          <p>Copy this path to navigate quickly in the next window:</p>
+          <div class="path-copy-container-style">
+            <input type="text" id="guidancePath" readonly class="guidance-path-input" value="Loading path..."
+              aria-label="Project Path">
+            <button class="btn btn-sm btn-secondary" id="copyPathBtn" title="Copy to clipboard">📋 Copy</button>
+          </div>
+          <p class="form-hint">Tip: You can paste this directly into the address bar of the Windows Explorer window that
+            opens next.</p>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" id="cancelGuidance">Cancel</button>
+          <button class="btn btn-primary" id="startNativePickerBtn">Open File Explorer</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Help Modal -->
+    <div class="modal hidden" id="helpModal">
+      <div class="modal-content modal-content-wide">
+        <div class="modal-header">
+          <h3>🤖 Orchestrator Help</h3>
+          <button class="btn-close" id="closeHelpModal">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="help-content">
+            <h4>Quick Start</h4>
+            <p>1. <b>Drag & Drop</b> nodes from the left palette onto the canvas.</p>
+            <p>2. <b>Connect</b> nodes by dragging from the right handle (⚫) of one node to the left handle (⚫) of
+              another.</p>
+            <p>3. <b>Configure</b> nodes by clicking on them to open the editor panel.</p>
+            <p>4. <b>Run</b> the workflow by clicking "Run Workflow" and entering a prompt.</p>
+
+            <h4>Keyboard Shortcuts</h4>
+            <ul>
+              <li><b>Delete</b>: Remove selected node or connection</li>
+              <li><b>Ctrl + S</b>: Save Workflow</li>
+              <li><b>Ctrl + Enter</b>: Run Workflow</li>
+            </ul>
+
+            <h4>Node Types</h4>
+            <ul>
+              <li>🤖 <b>Agent</b>: Standard LLM agent for executing tasks.</li>
+              <li>🎭 <b>Character</b>: Storyteller agent with Backstory (supports cycles).</li>
+              <li>🎬 <b>Director</b>: Narrative supervisor (can pause workflow for approval).</li>
+              <li>⚖️ <b>Auditor</b>: Verifies outputs against rules.</li>
+              <li>🔀 <b>Router</b>: Directs flow based on content.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-primary" id="closeHelpBtn">Got it</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edge Configuration Modal -->
+    <div class="modal hidden" id="edgeModal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>🔗 Connection Settings</h3>
+          <button class="btn-close" id="closeEdgeModal">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Label</label>
+            <input type="text" id="edgeLabel" class="form-control" placeholder="e.g., 'Approve', 'Yes'">
+          </div>
+          <div class="form-group">
+            <label>Type</label>
+            <select id="edgeType" class="form-control" aria-label="Connection Type">
+              <option value="default">Standard flow</option>
+              <option value="feedback">Feedback Loop (Dashed)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Condition (Logic)</label>
+            <select id="edgeCondition" class="form-control" aria-label="Connection Condition">
+              <option value="">None (Always proceed)</option>
+              <option value="approve">On 'Approve'</option>
+              <option value="reject">On 'Reject'</option>
+              <option value="custom">Custom Regex</option>
+            </select>
+          </div>
+          <div class="form-group hidden" id="customConditionGroup">
+            <label>Regex Pattern</label>
+            <input type="text" id="edgeRegex" class="form-control" placeholder="e.g., 'success', 'error'">
+          </div>
+          <div class="edge-controls-wrapper">
+            <button class="btn btn-danger btn-sm" id="deleteEdgeBtn">🗑️ Delete Connection</button>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" id="cancelEdgeBtn">Cancel</button>
+          <button class="btn btn-primary" id="saveEdgeBtn">Save Changes</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI Generation Modal -->
+    <div class="modal hidden" id="generationModal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>✨ Generative Architect & Templates</h3>
+          <button class="btn-close" id="closeGenModal">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="template-section">
+            <label>📚 Choose a Starter Template</label>
+            <select id="templateSelect" class="form-control" title="Select a Template">
+              <option value="">-- Select a Template --</option>
+              <!-- Dynamic Options -->
+            </select>
+            <button class="btn btn-sm btn-secondary mt-sm" id="loadTemplateBtn" disabled>Load Template</button>
+          </div>
+          <hr class="divider">
+          <p>OR Describe the workflow you want to create (e.g., "A debate team with 3 critics").</p>
+          <textarea id="genPrompt" class="form-control" rows="4"
+            placeholder="Enter your instructions here..."></textarea>
+          <div id="genSpinner" class="gen-spinner">
+            <span class="spinner-icon-lg">🔮</span><br>Thinking...
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" id="cancelGenBtn">Cancel</button>
+          <button class="btn btn-primary" id="startGenBtn">Generate</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Export Workflow Modal -->
+    <div class="modal hidden" id="exportModal">
+      <div class="modal-content modal-content-wide">
+        <div class="modal-header">
+          <h3>📤 Export Workflow</h3>
+          <button class="btn-close" id="closeExportModal">×</button>
+        </div>
+        <div class="modal-body">
+          <p>Export your workflow as a standalone Python script or an API client snippet.</p>
+          <div class="tab-header">
+            <button class="tab-btn active" data-export-tab="standalone">Standalone Python</button>
+            <button class="tab-btn" data-export-tab="api">API Client (Requests)</button>
+          </div>
+          <div class="code-container">
+            <pre id="exportCodeArea"><code></code></pre>
+            <button class="btn btn-sm btn-secondary copy-code-btn" id="copyExportCodeBtn">📋 Copy Code</button>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" id="cancelExportBtn">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Usage HUD (Expert Mode) -->
+    <div class="usage-hud hidden" id="usageHud">
+      <div class="hud-item">
+        <span class="hud-label">Memory</span>
+        <span class="hud-value" id="hudMemory">-- MB</span>
+      </div>
+      <div class="hud-item">
+        <span class="hud-label">CPU</span>
+        <span class="hud-value" id="hudCpu">--%</span>
+      </div>
+      <div class="hud-item">
+        <span class="hud-label">Active Agents</span>
+        <span class="hud-value" id="hudAgents">0</span>
+      </div>
+    </div>
+
+    <script src="/static/canvas_v2.js"></script>
+    <script src="/static/nodes.js"></script>
+    <script src="/static/provider_manager.js"></script>
+    <script src="/static/tooltip_manager.js"></script>
+    <script src="/static/app_v2.js"></script>
+</body>
+
+</html>

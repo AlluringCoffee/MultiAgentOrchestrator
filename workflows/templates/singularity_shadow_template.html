@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Singularity's Shadow</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;700&family=JetBrains+Mono:wght@400;700&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg: #050508;
+            --accent: #ff00ff;
+            --secondary: #00ffff;
+            --glass: rgba(255, 255, 255, 0.05);
+            --border: rgba(255, 255, 255, 0.1);
+        }
+
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: var(--bg);
+            color: #fff;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        #container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        .ui-overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .panel {
+            background: var(--glass);
+            -webkit-backdrop-filter: blur(10px);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border);
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            pointer-events: auto;
+            min-width: 250px;
+        }
+
+        .stat-label {
+            font-family: 'JetBrains+Mono', monospace;
+            font-size: 0.8rem;
+            color: var(--secondary);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .stat-value {
+            font-size: 2.2rem;
+            font-weight: 700;
+            margin-top: 5px;
+            text-shadow: 0 0 10px var(--accent);
+        }
+
+        .right-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            pointer-events: auto;
+            max-width: 300px;
+        }
+
+        .upgrade-card {
+            background: var(--glass);
+            border: 1px solid var(--border);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .upgrade-card:hover {
+            transform: scale(1.05);
+            border-color: var(--accent);
+            background: rgba(255, 0, 255, 0.1);
+        }
+
+        .upgrade-card h3 {
+            margin: 0;
+            font-size: 1rem;
+            color: var(--secondary);
+        }
+
+        .upgrade-card p {
+            font-size: 0.8rem;
+            margin: 5px 0;
+            color: #ccc;
+        }
+
+        .upgrade-card .cost {
+            font-family: 'JetBrains+Mono', monospace;
+            font-weight: bold;
+            color: var(--accent);
+        }
+
+        .narrative-toast {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--glass);
+            padding: 15px 30px;
+            border-radius: 30px;
+            border: 1px solid var(--accent);
+            text-align: center;
+            font-style: italic;
+            opacity: 0;
+            transition: opacity 1s;
+        }
+
+        .ending-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #fff;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            color: #000;
+            font-size: 3rem;
+            text-align: center;
+            padding: 50px;
+        }
+
+        .effect-value {
+            color: var(--secondary);
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="container">
+        <div class="ui-overlay">
+            <div class="panel">
+                <div class="stat-label">Event Horizon Mass</div>
+                <div id="mass" class="stat-value">0</div>
+            </div>
+            <div class="panel">
+                <div class="stat-label">Distortion Effect</div>
+                <div id="efficiency" class="effect-value">STABLE</div>
+            </div>
+        </div>
+
+        <div class="right-panel" id="upgrades">
+            <!-- Upgrades will be injected here -->
+        </div>
+
+        <div id="narrative" class="narrative-toast"></div>
+        <div id="ending" class="ending-overlay">THE SINGULARITY IS COMPLETE.</div>
+    </div>
+
+    <script>
+        // Game State
+        const state = {
+            mass: 0,
+            totalMass: 0,
+            lastSave: Date.now(),
+            upgrades: {
+                darkMatter: { name: 'Dark Matter Pulse', owned: 0, cost: 10, effect: 1, desc: 'Increases click yield.' },
+                graviton: { name: 'Graviton Loop', owned: 0, cost: 50, effect: 1, desc: 'Passive mass accumulation.' },
+                shadow: { name: 'Event Horizon Shadow', owned: 0, cost: 250, effect: 5, desc: 'Warp space-time further.' },
+                collapse: { name: 'Stellar Collapse', owned: 0, cost: 1000, effect: 20, desc: 'The hunger intensifies.' }
+            }
+        };
+
+        // Three.js Setup
+        let scene, camera, renderer, particles, singularity;
+        let mouseX = 0, mouseY = 0;
+        let pSystem;
+
+        function init() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 5;
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.getElementById('container').appendChild(renderer.domElement);
+
+            // Singularity Mesh
+            const geo = new THREE.SphereGeometry(0.5, 32, 32);
+            const mat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+            singularity = new THREE.Mesh(geo, mat);
+            scene.add(singularity);
+
+            // Glow around singularity
+            const glowGeo = new THREE.SphereGeometry(0.55, 32, 32);
+            const glowMat = new THREE.MeshBasicMaterial({
+                color: 0xff00ff,
+                transparent: true,
+                opacity: 0.3
+            });
+            const glow = new THREE.Mesh(glowGeo, glowMat);
+            singularity.add(glow);
+
+            // Particles
+            const pGeo = new THREE.BufferGeometry();
+            const count = 5000;
+            const pos = new Float32Array(count * 3);
+            const colors = new Float32Array(count * 3);
+
+            for (let i = 0; i < count * 3; i++) {
+                pos[i] = (Math.random() - 0.5) * 10;
+                colors[i] = Math.random();
+            }
+
+            pGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+            pGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+            const pMat = new THREE.PointsMaterial({
+                size: 0.02,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.8
+            });
+
+            particles = new THREE.Points(pGeo, pMat);
+            scene.add(particles);
+
+            window.addEventListener('resize', onWindowResize, false);
+            window.addEventListener('mousemove', onMouseMove, false);
+            window.addEventListener('click', onClick, false);
+
+            renderUpgrades();
+            animate();
+            showNarrative("You are the shadow. Consume the light.");
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function onMouseMove(event) {
+            mouseX = (event.clientX / window.innerWidth) * 2 - 1;
+            mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
+        }
+
+        function onClick() {
+            let yield = 1 + (state.upgrades.darkMatter.owned * state.upgrades.darkMatter.effect);
+            addMass(yield);
+
+            // Visual feedback
+            singularity.scale.set(1.2, 1.2, 1.2);
+            setTimeout(() => singularity.scale.set(1, 1, 1), 50);
+        }
+
+        function addMass(amount) {
+            state.mass += amount;
+            state.totalMass += amount;
+            updateUI();
+            checkProgress();
+        }
+
+        function updateUI() {
+            document.getElementById('mass').innerText = Math.floor(state.mass);
+        }
+
+        function renderUpgrades() {
+            const container = document.getElementById('upgrades');
+            container.innerHTML = '';
+
+            Object.keys(state.upgrades).forEach(id => {
+                const up = state.upgrades[id];
+                const card = document.createElement('div');
+                card.className = 'upgrade-card';
+                card.innerHTML = `
+                    <h3>${up.name} (${up.owned})</h3>
+                    <p>${up.desc}</p>
+                    <div class="cost">Cost: ${Math.floor(up.cost)}</div>
+                `;
+                card.onclick = () => buyUpgrade(id);
+                container.appendChild(card);
+            });
+        }
+
+        function buyUpgrade(id) {
+            const up = state.upgrades[id];
+            if (state.mass >= up.cost) {
+                state.mass -= up.cost;
+                up.owned++;
+                up.cost *= 1.6;
+                renderUpgrades();
+                updateUI();
+                showNarrative(`Consuming ${up.name}...`);
+            }
+        }
+
+        function showNarrative(msg) {
+            const el = document.getElementById('narrative');
+            el.innerText = msg;
+            el.style.opacity = 1;
+            setTimeout(() => el.style.opacity = 0, 3000);
+        }
+
+        function checkProgress() {
+            if (state.totalMass > 100 && !state.p1) {
+                state.p1 = true;
+                showNarrative("The horizon expands. Gravity pulse detected.");
+            }
+            if (state.totalMass > 5000) {
+                document.getElementById('ending').style.display = 'flex';
+                setTimeout(() => location.reload(), 5000);
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Rotate particles
+            particles.rotation.y += 0.001;
+            particles.rotation.x += 0.0005;
+
+            // Singularity drift
+            singularity.position.x += (mouseX * 0.5 - singularity.position.x) * 0.1;
+            singularity.position.y += (mouseY * 0.5 - singularity.position.y) * 0.1;
+
+            // Gravity effect on particles
+            const positions = particles.geometry.attributes.position.array;
+            for (let i = 0; i < positions.length; i += 3) {
+                const px = positions[i];
+                const py = positions[i + 1];
+                const pz = positions[i + 2];
+
+                // Simple gravity pull towards singularity
+                const dx = singularity.position.x - px;
+                const dy = singularity.position.y - py;
+                const dz = singularity.position.z - pz;
+                const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+                if (dist > 0.1) {
+                    positions[i] += dx * 0.001 / dist;
+                    positions[i + 1] += dy * 0.001 / dist;
+                    positions[i + 2] += dz * 0.001 / dist;
+                } else {
+                    // Reset far away if eaten
+                    positions[i] = (Math.random() - 0.5) * 10;
+                    positions[i + 1] = (Math.random() - 0.5) * 10;
+                    positions[i + 2] = (Math.random() - 0.5) * 10;
+                    addMass(0.01); // Passive gain from eating particles
+                }
+            }
+            particles.geometry.attributes.position.needsUpdate = true;
+
+            // Passive gain from upgrades
+            const passive = (state.upgrades.graviton.owned * state.upgrades.graviton.effect) / 60;
+            if (passive > 0) addMass(passive);
+
+            renderer.render(scene, camera);
+        }
+
+        init();
+    </script>
+</body>
+
+</html>

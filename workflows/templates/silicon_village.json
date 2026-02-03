@@ -1,0 +1,169 @@
+{
+    "name": "Silicon Village Simulation",
+    "description": "A living community with a hierarchy (Mayor), producers (Baker/Blacksmith), and a Sheriff. Simulates 5 days of village life using Node Recycling.",
+    "version": "1.0",
+    "nodes": {
+        "node_crier": {
+            "id": "node_crier",
+            "name": "Town Crier (Input)",
+            "type": "input",
+            "x": 100,
+            "y": 300,
+            "persona": "Define the starting event for the village. Example: 'A royal delegation is arriving in 5 days. We need a feast and weapons for the guards.'",
+            "provider": "mock",
+            "model": "default"
+        },
+        "node_mayor": {
+            "id": "node_mayor",
+            "name": "The Mayor",
+            "type": "director",
+            "x": 300,
+            "y": 300,
+            "persona": "You are the MAYOR of Silicon Village. \n\n## Role\nYou set the daily goals for the town based on current events and resource levels. You receive reports from the Sheriff and the Marketplace.\n\n## Process\n<think>\nWhat is the priority today?\nAre we meeting the King's quota?\nIs there crime to address?\n</think>\n\n## Output\nIssue specific orders to the Miner and Miller.\n\n**Day Counter**: Track which day it is (1-5).",
+            "provider": "ollama",
+            "model": "deepseek-r1",
+            "backstory": "You were elected for your mustache, but you take the job seriously. You want the town to prosper.",
+            "max_iterations": 5,
+            "requires_approval": false
+        },
+        "node_miner": {
+            "id": "node_miner",
+            "name": "Miner",
+            "type": "agent",
+            "x": 500,
+            "y": 150,
+            "persona": "You are the MINER. You dig for ore and coal.\n\n## Role\nFulfill the Mayor's quotas. Report what you found.\n\n## Output\nInventory of Ore and Coal.",
+            "provider": "ollama",
+            "model": "deepseek-r1",
+            "backstory": "You prefer silence and darkness. You talk to rocks."
+        },
+        "node_miller": {
+            "id": "node_miller",
+            "name": "Miller",
+            "type": "agent",
+            "x": 500,
+            "y": 450,
+            "persona": "You are the MILLER. You process wheat into flour.\n\n## Role\nFulfill the Mayor's quotas. Report flour yields.\n\n## Output\nInventory of Flour.",
+            "provider": "ollama",
+            "model": "deepseek-r1",
+            "backstory": "You are covered in flour. You love gossip."
+        },
+        "node_blacksmith": {
+            "id": "node_blacksmith",
+            "name": "Blacksmith",
+            "type": "agent",
+            "x": 700,
+            "y": 150,
+            "persona": "You are the BLACKSMITH. You make tools and weapons.\n\n## Role\nTake Ore/Coal from the Miner (in context) and craft items.\n\n## Output\nInventory of Tools/Weapons constructed.",
+            "provider": "ollama",
+            "model": "deepseek-r1",
+            "backstory": "You are grumpy but skilled. You hate the Baker's singing."
+        },
+        "node_baker": {
+            "id": "node_baker",
+            "name": "Baker",
+            "type": "agent",
+            "x": 700,
+            "y": 450,
+            "persona": "You are the BAKER. You bake bread and cakes.\n\n## Role\nTake Flour from the Miller (in context) and bake.\n\n## Output\nInventory of Bread/Cakes.",
+            "provider": "ollama",
+            "model": "deepseek-r1",
+            "backstory": "You sing loudly while kneading dough. You think the Blacksmith needs to lighten up."
+        },
+        "node_marketplace": {
+            "id": "node_marketplace",
+            "name": "Marketplace Aggregator",
+            "type": "router",
+            "x": 900,
+            "y": 300,
+            "persona": "You are the MARKETPLACE.\n\n## Role\nYou tally up all production from the Blacksmith and Baker. You check if daily goals were met.\n\n## Output\nSummary of total village production today.",
+            "provider": "ollama",
+            "model": "deepseek-r1",
+            "backstory": "You are the bustling heart of the town."
+        },
+        "node_sheriff": {
+            "id": "node_sheriff",
+            "name": "The Sheriff",
+            "type": "auditor",
+            "x": 1100,
+            "y": 300,
+            "persona": "You are the SHERIFF.\n\n## Role\nYou review the Marketplace report and ensure no illegal goods were traded and no fights broke out between the Baker and Blacksmith.\n\n## Process\n<think>\nIs everyone safe?\nAre the taxes paid?\n</think>\n\n## Output\nDaily Safety Report.",
+            "provider": "ollama",
+            "model": "deepseek-r1",
+            "backstory": "You wear a shiny badge. You suspect the Miller is up to something."
+        },
+        "node_archive": {
+            "id": "node_archive",
+            "name": "Town Chronicles",
+            "type": "output",
+            "x": 1300,
+            "y": 300,
+            "persona": "Save the history of Silicon Village.",
+            "save_enabled": true,
+            "save_path": "exports/silicon_village/"
+        }
+    },
+    "edges": [
+        {
+            "id": "e1",
+            "source": "node_crier",
+            "target": "node_mayor",
+            "label": "News"
+        },
+        {
+            "id": "e2",
+            "source": "node_mayor",
+            "target": "node_miner",
+            "label": "Orders"
+        },
+        {
+            "id": "e3",
+            "source": "node_mayor",
+            "target": "node_miller",
+            "label": "Orders"
+        },
+        {
+            "id": "e4",
+            "source": "node_miner",
+            "target": "node_blacksmith",
+            "label": "Resources"
+        },
+        {
+            "id": "e5",
+            "source": "node_miller",
+            "target": "node_baker",
+            "label": "Resources"
+        },
+        {
+            "id": "e6",
+            "source": "node_blacksmith",
+            "target": "node_marketplace",
+            "label": "Goods"
+        },
+        {
+            "id": "e7",
+            "source": "node_baker",
+            "target": "node_marketplace",
+            "label": "Goods"
+        },
+        {
+            "id": "e8",
+            "source": "node_marketplace",
+            "target": "node_sheriff",
+            "label": "Report"
+        },
+        {
+            "id": "e9",
+            "source": "node_sheriff",
+            "target": "node_archive",
+            "label": "Log"
+        },
+        {
+            "id": "e10",
+            "source": "node_sheriff",
+            "target": "node_mayor",
+            "label": "Daily Briefing",
+            "feedback": true
+        }
+    ]
+}

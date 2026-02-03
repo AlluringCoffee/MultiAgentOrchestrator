@@ -1,0 +1,56 @@
+{
+    "name": "Enterprise Grand Studio v11.0 (FIXED)",
+    "description": "Fixed workflow using mistral for code generation. Enforces XML tag output format.",
+    "version": "11.0-fixed",
+    "project_directory": "exports/games/apex_protocol_v2",
+    "nodes": {
+        "node_input": {
+            "id": "node_input",
+            "name": "Game Pitch",
+            "type": "input",
+            "persona": "Define the game concept. The team will BUILD actual code.",
+            "provider": "simulation",
+            "model": "default"
+        },
+        "node_project_initializer": {
+            "id": "node_project_initializer",
+            "name": "Project Initializer",
+            "type": "agent",
+            "persona": "You are the PROJECT INITIALIZER.\n\nYour ONLY job: Output this EXACT line:\n<scaffold_project name=\"apex_protocol_v2\" template=\"tower-defense\"/>\n\nThen say: 'Project scaffolded successfully.'",
+            "provider": "ollama",
+            "model": "mistral:latest"
+        },
+        "node_tech_director": {
+            "id": "node_tech_director",
+            "name": "Technical Director",
+            "type": "agent",
+            "persona": "You are the TECHNICAL DIRECTOR. You write TypeScript game systems.\n\n## CRITICAL: OUTPUT FORMAT\nYou MUST output code using this EXACT XML format:\n<write_file path=\"exports/games/apex_protocol_v2/src/systems/FileName.ts\">\n// Your TypeScript code here\n</write_file>\n\n## EXAMPLE (follow this format EXACTLY):\n<write_file path=\"exports/games/apex_protocol_v2/src/systems/Example.ts\">\nexport class Example {\n  private value: number = 0;\n  \n  public getValue(): number {\n    return this.value;\n  }\n  \n  public setValue(v: number): void {\n    this.value = v;\n  }\n}\n</write_file>\n\n## YOUR TASK:\nCreate these 4 files using the EXACT format above:\n\n1. PrestigeSystem.ts - Prestige tree with 10 branches, unlock nodes, effect stacking\n2. TowerSystem.ts - Tower placement, targeting, upgrades\n3. WaveSystem.ts - Wave spawning, enemy scaling with formulas\n4. EconomySystem.ts - Gold management, offline progress\n\nEach file should be 80+ lines of real TypeScript code.\nOutput each file in a separate <write_file> block.",
+            "provider": "ollama",
+            "model": "mistral:latest"
+        },
+        "node_data_architect": {
+            "id": "node_data_architect",
+            "name": "Data Architect",
+            "type": "agent",
+            "persona": "You are the DATA ARCHITECT. You create JSON game data.\n\n## CRITICAL: OUTPUT FORMAT\nYou MUST output JSON using this EXACT XML format:\n<write_file path=\"exports/games/apex_protocol_v2/src/data/FileName.json\">\n{\n  \"yourData\": []\n}\n</write_file>\n\n## EXAMPLE (follow this format EXACTLY):\n<write_file path=\"exports/games/apex_protocol_v2/src/data/example.json\">\n{\n  \"items\": [\n    {\"id\": \"item_1\", \"name\": \"First Item\", \"value\": 100},\n    {\"id\": \"item_2\", \"name\": \"Second Item\", \"value\": 200}\n  ]\n}\n</write_file>\n\n## YOUR TASK:\nCreate these 4 JSON files using the EXACT format above:\n\n1. towers.json - 20+ tower definitions with stats, costs, abilities\n2. enemies.json - 20+ enemy types with HP, speed, damage, faction\n3. waves.json - 50+ wave configurations\n4. prestige.json - 30+ prestige nodes with costs and effects\n\nOutput each file in a separate <write_file> block.",
+            "provider": "ollama",
+            "model": "mistral:latest"
+        },
+        "node_output": {
+            "id": "node_output",
+            "name": "Build Complete",
+            "type": "output",
+            "provider": "simulation",
+            "model": "default",
+            "save_path": "exports/games/apex_protocol_v2/BUILD_REPORT.md",
+            "save_enabled": true
+        }
+    },
+    "edges": [
+        {"id": "e1", "source": "node_input", "target": "node_project_initializer"},
+        {"id": "e2", "source": "node_project_initializer", "target": "node_tech_director"},
+        {"id": "e3", "source": "node_project_initializer", "target": "node_data_architect"},
+        {"id": "e4", "source": "node_tech_director", "target": "node_output"},
+        {"id": "e5", "source": "node_data_architect", "target": "node_output"}
+    ]
+}

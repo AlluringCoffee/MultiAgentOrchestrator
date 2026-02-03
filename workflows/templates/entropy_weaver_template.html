@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Entropy Weaver</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #000;
+            color: #fff;
+            overflow: hidden;
+            cursor: crosshair;
+        }
+
+        #game-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        #ui-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 10;
+            padding: 20px;
+            pointer-events: none;
+        }
+
+        .stats-panel {
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid rgba(100, 200, 255, 0.3);
+            border-radius: 10px;
+            padding: 15px 25px;
+            display: inline-block;
+            pointer-events: auto;
+        }
+
+        .resource {
+            font-size: 2em;
+            color: #64c8ff;
+            text-shadow: 0 0 20px rgba(100, 200, 255, 0.5);
+        }
+
+        .resource-label {
+            color: #888;
+            font-size: 0.9em;
+        }
+
+        .velocity-meter {
+            margin-top: 10px;
+            height: 8px;
+            background: #222;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .velocity-fill {
+            height: 100%;
+            width: 50%;
+            background: linear-gradient(90deg, #3498db, #fff, #e74c3c);
+            transition: width 0.1s;
+        }
+
+        .velocity-label {
+            font-size: 0.8em;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        #upgrade-panel {
+            position: fixed;
+            right: 20px;
+            top: 20px;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .upgrade-card {
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid rgba(100, 200, 255, 0.3);
+            border-radius: 8px;
+            padding: 12px 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+            min-width: 200px;
+        }
+
+        .upgrade-card:hover {
+            border-color: #64c8ff;
+            transform: translateX(-5px);
+            box-shadow: 0 0 20px rgba(100, 200, 255, 0.3);
+        }
+
+        .upgrade-card.locked {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .upgrade-name {
+            color: #64c8ff;
+            font-size: 0.9em;
+        }
+
+        .upgrade-cost {
+            color: #888;
+            font-size: 0.8em;
+        }
+
+        .upgrade-owned {
+            color: #4a4;
+            font-size: 0.8em;
+            float: right;
+        }
+
+        .upgrade-desc {
+            color: #666;
+            font-size: 0.7em;
+            margin-top: 5px;
+        }
+
+        #phase-indicator {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            text-align: center;
+        }
+
+        .phase-title {
+            font-size: 1.2em;
+            color: #64c8ff;
+            text-shadow: 0 0 10px rgba(100, 200, 255, 0.5);
+        }
+
+        .phase-desc {
+            color: #666;
+            font-size: 0.8em;
+        }
+
+        #prestige-btn {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            background: linear-gradient(135deg, #1a1a3e, #2a1a4e);
+            border: 2px solid #8855ff;
+            color: #c9a0ff;
+            padding: 15px 40px;
+            border-radius: 25px;
+            font-family: inherit;
+            font-size: 1em;
+            cursor: pointer;
+            display: none;
+            transition: all 0.3s;
+        }
+
+        #prestige-btn:hover {
+            background: linear-gradient(135deg, #2a2a5e, #3a2a6e);
+            box-shadow: 0 0 30px rgba(136, 85, 255, 0.5);
+        }
+
+        #ending-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 100;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .ending-text {
+            font-size: 1.5em;
+            color: #fff;
+            max-width: 600px;
+            line-height: 1.8;
+            margin-bottom: 40px;
+        }
+
+        .ending-btn {
+            background: transparent;
+            border: 2px solid #fff;
+            color: #fff;
+            padding: 15px 40px;
+            margin: 10px;
+            font-family: inherit;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .ending-btn:hover {
+            background: #fff;
+            color: #000;
+        }
+
+        .ending-btn.final {
+            border-color: #ffd700;
+            color: #ffd700;
+        }
+
+        .ending-btn.final:hover {
+            background: #ffd700;
+            color: #000;
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="game-canvas"></canvas>
+
+    <div id="ui-overlay">
+        <div class="stats-panel">
+            <div class="resource-label">LUMEN</div>
+            <div class="resource" id="lumen-display">0</div>
+            <div class="velocity-meter">
+                <div class="velocity-fill" id="velocity-fill"></div>
+            </div>
+            <div class="velocity-label">Weaving Efficiency: <span id="efficiency-display">0%</span></div>
+        </div>
+    </div>
+
+    <div id="upgrade-panel">
+        <div class="upgrade-card" data-upgrade="filament">
+            <span class="upgrade-name">Filament Density</span>
+            <span class="upgrade-owned" id="filament-owned">0</span>
+            <div class="upgrade-cost">Cost: <span id="filament-cost">10</span> Lumen</div>
+            <div class="upgrade-desc">Trails linger +20% longer</div>
+        </div>
+        <div class="upgrade-card" data-upgrade="prism">
+            <span class="upgrade-name">Prism Refraction</span>
+            <span class="upgrade-owned" id="prism-owned">0</span>
+            <div class="upgrade-cost">Cost: <span id="prism-cost">50</span> Lumen</div>
+            <div class="upgrade-desc">Auto-bouncer generates passive Lumen</div>
+        </div>
+        <div class="upgrade-card" data-upgrade="graviton">
+            <span class="upgrade-name">Graviton Well</span>
+            <span class="upgrade-owned" id="graviton-owned">0</span>
+            <div class="upgrade-cost">Cost: <span id="graviton-cost">500</span> Lumen</div>
+            <div class="upgrade-desc">Particles orbit your cursor</div>
+        </div>
+        <div class="upgrade-card" data-upgrade="temporal">
+            <span class="upgrade-name">Temporal Flux</span>
+            <span class="upgrade-owned" id="temporal-owned">0</span>
+            <div class="upgrade-cost">Cost: <span id="temporal-cost">2000</span> Lumen</div>
+            <div class="upgrade-desc">Slow particle fade rate</div>
+        </div>
+    </div>
+
+    <div id="phase-indicator">
+        <div class="phase-title" id="phase-title">Phase I: The Weaving</div>
+        <div class="phase-desc" id="phase-desc">Move your cursor to create light. Find the golden rhythm.</div>
+    </div>
+
+    <button id="prestige-btn">⟲ Time Dilation</button>
+
+    <div id="ending-overlay">
+        <div class="ending-text">
+            The Entropy Weaver has filled the void with light.<br><br>
+            The universe is complete. Every particle you created now dances in eternal harmony.<br><br>
+            You have proven that Order can emerge from Chaos.<br><br>
+            <em>What will you choose?</em>
+        </div>
+        <button class="ending-btn final" id="let-there-be-light">Let There Be Light</button>
+        <button class="ending-btn" id="weave-again">Weave Again</button>
+    </div>
+
+    <script>
+        // ==================== GAME STATE ====================
+        const state = {
+            lumen: 0,
+            totalLumen: 0,
+            prestigeCount: 0,
+            phase: 1,
+            upgrades: {
+                filament: { owned: 0, baseCost: 10, multiplier: 1.5 },
+                prism: { owned: 0, baseCost: 50, multiplier: 2 },
+                graviton: { owned: 0, baseCost: 500, multiplier: 3 },
+                temporal: { owned: 0, baseCost: 2000, multiplier: 2.5 }
+            },
+            mouse: { x: 0, y: 0, prevX: 0, prevY: 0, velocity: 0, isDown: false },
+            particles: [],
+            bouncers: [],
+            gameEnded: false
+        };
+
+        // ==================== CANVAS SETUP ====================
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // ==================== PARTICLE CLASS ====================
+        class Particle {
+            constructor(x, y, velocity, hue) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 0.5;
+                this.vy = (Math.random() - 0.5) * 0.5;
+                this.size = 2 + Math.random() * 3;
+                this.life = 1.0;
+                this.decay = 0.003 / (1 + state.upgrades.temporal.owned * 0.2);
+                this.hue = hue;
+                this.brightness = Math.min(100, 50 + velocity * 5);
+            }
+
+            update() {
+                // Apply gravity towards cursor if graviton upgrade
+                if (state.upgrades.graviton.owned > 0) {
+                    const dx = state.mouse.x - this.x;
+                    const dy = state.mouse.y - this.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist > 50) {
+                        const force = state.upgrades.graviton.owned * 0.02;
+                        this.vx += (dx / dist) * force;
+                        this.vy += (dy / dist) * force;
+                    }
+                }
+
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vx *= 0.99;
+                this.vy *= 0.99;
+                this.life -= this.decay / (1 + state.upgrades.filament.owned * 0.2);
+                return this.life > 0;
+            }
+
+            draw() {
+                const alpha = this.life * 0.8;
+                const glow = this.size * (1 + this.life);
+
+                // Outer glow
+                const gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, glow * 3);
+                gradient.addColorStop(0, `hsla(${this.hue}, 80%, ${this.brightness}%, ${alpha})`);
+                gradient.addColorStop(0.5, `hsla(${this.hue}, 80%, ${this.brightness * 0.5}%, ${alpha * 0.3})`);
+                gradient.addColorStop(1, 'transparent');
+
+                ctx.beginPath();
+                ctx.fillStyle = gradient;
+                ctx.arc(this.x, this.y, glow * 3, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Core
+                ctx.beginPath();
+                ctx.fillStyle = `hsla(${this.hue}, 50%, 90%, ${alpha})`;
+                ctx.arc(this.x, this.y, this.size * this.life, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        // ==================== BOUNCER CLASS (Auto-generators) ====================
+        class Bouncer {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.vx = (Math.random() - 0.5) * 4;
+                this.vy = (Math.random() - 0.5) * 4;
+                this.size = 8;
+                this.hue = 280;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // Bounce off walls
+                if (this.x < 0 || this.x > canvas.width) {
+                    this.vx *= -1;
+                    state.lumen += 0.5;
+                    this.createTrail();
+                }
+                if (this.y < 0 || this.y > canvas.height) {
+                    this.vy *= -1;
+                    state.lumen += 0.5;
+                    this.createTrail();
+                }
+            }
+
+            createTrail() {
+                for (let i = 0; i < 3; i++) {
+                    state.particles.push(new Particle(this.x, this.y, 3, this.hue));
+                }
+            }
+
+            draw() {
+                const gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.size * 2);
+                gradient.addColorStop(0, `hsla(${this.hue}, 80%, 70%, 0.8)`);
+                gradient.addColorStop(1, 'transparent');
+
+                ctx.beginPath();
+                ctx.fillStyle = gradient;
+                ctx.arc(this.x, this.y, this.size * 2, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        // ==================== INPUT HANDLING ====================
+        canvas.addEventListener('mousemove', (e) => {
+            state.mouse.prevX = state.mouse.x;
+            state.mouse.prevY = state.mouse.y;
+            state.mouse.x = e.clientX;
+            state.mouse.y = e.clientY;
+
+            const dx = state.mouse.x - state.mouse.prevX;
+            const dy = state.mouse.y - state.mouse.prevY;
+            state.mouse.velocity = Math.sqrt(dx * dx + dy * dy);
+        });
+
+        canvas.addEventListener('mousedown', () => state.mouse.isDown = true);
+        canvas.addEventListener('mouseup', () => state.mouse.isDown = false);
+
+        // ==================== VELOCITY TO COLOR ====================
+        function getVelocityColor(velocity) {
+            const optimalMin = 2;
+            const optimalMax = 8;
+
+            if (velocity < optimalMin) {
+                // Cold - Blue (too slow)
+                return { hue: 210, efficiency: velocity / optimalMin };
+            } else if (velocity <= optimalMax) {
+                // Perfect - White/Cyan
+                const t = (velocity - optimalMin) / (optimalMax - optimalMin);
+                return { hue: 180 - t * 30, efficiency: 1.0 };
+            } else {
+                // Hot - Red (too fast, burning)
+                const overheat = (velocity - optimalMax) / 15;
+                return { hue: 0, efficiency: Math.max(-0.5, 1 - overheat * 1.5) };
+            }
+        }
+
+        // ==================== GAME LOOP ====================
+        function gameLoop() {
+            if (state.gameEnded) return;
+
+            // Clear with fade effect
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Generate particles on mouse movement
+            if (state.mouse.velocity > 0.5) {
+                const { hue, efficiency } = getVelocityColor(state.mouse.velocity);
+
+                // Create particles
+                const particleCount = Math.min(5, Math.floor(state.mouse.velocity / 2));
+                for (let i = 0; i < particleCount; i++) {
+                    state.particles.push(new Particle(
+                        state.mouse.x + (Math.random() - 0.5) * 10,
+                        state.mouse.y + (Math.random() - 0.5) * 10,
+                        state.mouse.velocity,
+                        hue
+                    ));
+                }
+
+                // Generate or burn lumen
+                const baseGen = 0.1 * (1 + state.prestigeCount * 0.5);
+                if (efficiency > 0) {
+                    state.lumen += baseGen * efficiency;
+                    state.totalLumen += baseGen * efficiency;
+                } else {
+                    state.lumen = Math.max(0, state.lumen + baseGen * efficiency);
+                }
+
+                // Update UI
+                updateEfficiencyDisplay(efficiency);
+            }
+
+            // Update and draw particles
+            state.particles = state.particles.filter(p => {
+                const alive = p.update();
+                if (alive) p.draw();
+                return alive;
+            });
+
+            // Update bouncers
+            state.bouncers.forEach(b => {
+                b.update();
+                b.draw();
+            });
+
+            // Update displays
+            document.getElementById('lumen-display').textContent = formatNumber(state.lumen);
+
+            // Check phase progression
+            checkPhaseProgression();
+
+            // Check prestige availability
+            if (state.lumen >= 100000 && state.phase >= 2) {
+                document.getElementById('prestige-btn').style.display = 'block';
+            }
+
+            // Limit particles
+            if (state.particles.length > 1000) {
+                state.particles = state.particles.slice(-800);
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        function updateEfficiencyDisplay(efficiency) {
+            const percent = Math.round(efficiency * 100);
+            document.getElementById('efficiency-display').textContent =
+                efficiency >= 0 ? `${percent}%` : `BURNING ${Math.abs(percent)}%`;
+
+            // Update velocity meter
+            const fill = document.getElementById('velocity-fill');
+            const position = 25 + (efficiency + 0.5) * 50; // -0.5 to 1 → 0% to 100%
+            fill.style.width = `${Math.max(0, Math.min(100, position))}%`;
+        }
+
+        function checkPhaseProgression() {
+            if (state.phase === 1 && state.totalLumen >= 500) {
+                state.phase = 2;
+                document.getElementById('phase-title').textContent = 'Phase II: Automation';
+                document.getElementById('phase-desc').textContent = 'Stars awaken. Build your celestial machine.';
+            } else if (state.phase === 2 && state.totalLumen >= 50000) {
+                state.phase = 3;
+                document.getElementById('phase-title').textContent = 'Phase III: Transcendence';
+                document.getElementById('phase-desc').textContent = 'You are no longer the weaver. You are the loom.';
+            } else if (state.phase === 3 && state.totalLumen >= 1000000) {
+                showEnding();
+            }
+        }
+
+        // ==================== UPGRADES ====================
+        document.querySelectorAll('.upgrade-card').forEach(card => {
+            card.addEventListener('click', () => {
+                const type = card.dataset.upgrade;
+                const upgrade = state.upgrades[type];
+                const cost = Math.floor(upgrade.baseCost * Math.pow(upgrade.multiplier, upgrade.owned));
+
+                if (state.lumen >= cost) {
+                    state.lumen -= cost;
+                    upgrade.owned++;
+
+                    // Special effects
+                    if (type === 'prism' && state.bouncers.length < upgrade.owned) {
+                        state.bouncers.push(new Bouncer());
+                    }
+
+                    updateUpgradeDisplay();
+                }
+            });
+        });
+
+        function updateUpgradeDisplay() {
+            for (const [type, upgrade] of Object.entries(state.upgrades)) {
+                const cost = Math.floor(upgrade.baseCost * Math.pow(upgrade.multiplier, upgrade.owned));
+                document.getElementById(`${type}-cost`).textContent = formatNumber(cost);
+                document.getElementById(`${type}-owned`).textContent = upgrade.owned;
+
+                const card = document.querySelector(`[data-upgrade="${type}"]`);
+                card.classList.toggle('locked', state.lumen < cost);
+            }
+        }
+
+        // ==================== PRESTIGE ====================
+        document.getElementById('prestige-btn').addEventListener('click', () => {
+            if (state.lumen >= 100000) {
+                state.prestigeCount++;
+                state.lumen = 0;
+                state.particles = [];
+                state.bouncers = [];
+
+                // Reset upgrades but keep permanent bonuses
+                for (const upgrade of Object.values(state.upgrades)) {
+                    upgrade.owned = 0;
+                }
+
+                updateUpgradeDisplay();
+                document.getElementById('prestige-btn').style.display = 'none';
+            }
+        });
+
+        // ==================== ENDING ====================
+        function showEnding() {
+            document.getElementById('ending-overlay').style.display = 'flex';
+        }
+
+        document.getElementById('let-there-be-light').addEventListener('click', () => {
+            state.gameEnded = true;
+            localStorage.removeItem('entropyWeaver');
+            document.body.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100vh;background:#fff;color:#000;font-size:2em;font-family:serif;">And there was light.</div>';
+        });
+
+        document.getElementById('weave-again').addEventListener('click', () => {
+            document.getElementById('ending-overlay').style.display = 'none';
+            state.prestigeCount++;
+            state.lumen = 0;
+            state.totalLumen = 0;
+            state.phase = 1;
+            state.particles = [];
+            state.bouncers = [];
+            for (const upgrade of Object.values(state.upgrades)) {
+                upgrade.owned = 0;
+            }
+            document.getElementById('phase-title').textContent = 'Phase I: The Weaving';
+            document.getElementById('phase-desc').textContent = 'Move your cursor to create light. Find the golden rhythm.';
+            updateUpgradeDisplay();
+        });
+
+        // ==================== SAVE/LOAD ====================
+        function saveGame() {
+            const saveData = {
+                lumen: state.lumen,
+                totalLumen: state.totalLumen,
+                prestigeCount: state.prestigeCount,
+                phase: state.phase,
+                upgrades: state.upgrades,
+                timestamp: Date.now()
+            };
+            localStorage.setItem('entropyWeaver', JSON.stringify(saveData));
+        }
+
+        function loadGame() {
+            const saved = localStorage.getItem('entropyWeaver');
+            if (saved) {
+                const data = JSON.parse(saved);
+                state.lumen = data.lumen || 0;
+                state.totalLumen = data.totalLumen || 0;
+                state.prestigeCount = data.prestigeCount || 0;
+                state.phase = data.phase || 1;
+                if (data.upgrades) {
+                    for (const [key, val] of Object.entries(data.upgrades)) {
+                        if (state.upgrades[key]) {
+                            state.upgrades[key].owned = val.owned || 0;
+                        }
+                    }
+                }
+
+                // Restore bouncers
+                for (let i = 0; i < state.upgrades.prism.owned; i++) {
+                    state.bouncers.push(new Bouncer());
+                }
+
+                updateUpgradeDisplay();
+            }
+        }
+
+        // ==================== UTILITIES ====================
+        function formatNumber(n) {
+            if (n < 1000) return Math.floor(n).toString();
+            if (n < 1e6) return (n / 1000).toFixed(1) + 'K';
+            if (n < 1e9) return (n / 1e6).toFixed(2) + 'M';
+            if (n < 1e12) return (n / 1e9).toFixed(2) + 'B';
+            return n.toExponential(2);
+        }
+
+        // ==================== INIT ====================
+        loadGame();
+        setInterval(saveGame, 30000);
+        setInterval(updateUpgradeDisplay, 1000);
+        gameLoop();
+    </script>
+</body>
+
+</html>

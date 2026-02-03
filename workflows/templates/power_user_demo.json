@@ -1,0 +1,74 @@
+{
+    "name": "Power User Demo",
+    "description": "Showcase of advanced Agentic Tools: CLI, Filesystem, Browser, and Scripting nodes.",
+    "nodes": {
+        "node_input": {
+            "id": "node_input",
+            "name": "Task Input",
+            "type": "input",
+            "x": 50,
+            "y": 250,
+            "output": "Analyze the 'README.md' file in the current directory and count the lines of code in 'server.py'."
+        },
+        "node_cli": {
+            "id": "node_cli",
+            "name": "CLI Explorer",
+            "type": "agent",
+            "x": 350,
+            "y": 100,
+            "persona": "You are a Linux Terminal expert. Use <run_command> to execute shell commands.",
+            "backstory": "You prefer one-liners and pipes. You always verify file existence before cat-ing.",
+            "provider": "ollama",
+            "model": "llama3",
+            "internet_access": false,
+            "inputs": {
+                "context": "{{node_input.output}}"
+            }
+        },
+        "node_research": {
+            "id": "node_research",
+            "name": "Web Researcher",
+            "type": "browser",
+            "x": 350,
+            "y": 400,
+            "persona": "Research the latest best practices for Python FastAPI project structure.",
+            "provider": "google_ai",
+            "model": "gemini-1.5-flash",
+            "internet_access": true,
+            "provider_config": {
+                "browserUrl": "https://fastapi.tiangolo.com/tutorial/bigger-applications/",
+                "browserSelector": "body"
+            }
+        },
+        "node_analyst": {
+            "id": "node_analyst",
+            "name": "Code Analyst",
+            "type": "script",
+            "x": 700,
+            "y": 250,
+            "script_code": "# Python Script Node\n# Available globals: 'inputs' (dict), 'context' (str)\n\nimport os\n\ntry:\n    # Simulate analyzing CLI output\n    cli_output = inputs.get('node_cli', '')\n    \n    # Simulate analyzing web research\n    web_output = inputs.get('node_research', '')\n    \n    summary = f\"Analysis Complete.\\n\\nCLI Found:\\n{cli_output[:100]}...\\n\\nWeb Findings:\\n{web_output[:100]}...\"\n    \n    print(summary) # stdout is captured\nexcept Exception as e:\n    print(f\"Error: {e}\")",
+            "inputs": {
+                "cli": "{{node_cli.output}}",
+                "web": "{{node_research.output}}"
+            }
+        }
+    },
+    "edges": [
+        {
+            "source": "node_input",
+            "target": "node_cli"
+        },
+        {
+            "source": "node_input",
+            "target": "node_research"
+        },
+        {
+            "source": "node_cli",
+            "target": "node_analyst"
+        },
+        {
+            "source": "node_research",
+            "target": "node_analyst"
+        }
+    ]
+}

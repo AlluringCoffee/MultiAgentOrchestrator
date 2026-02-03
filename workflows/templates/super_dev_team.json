@@ -1,0 +1,121 @@
+{
+    "name": "Super Dev Team (Ultimate)",
+    "description": "The flagship multi-agent workflow: Detective -> Programmer -> Reviewer -> Optimizer. Features high-weight model scaling and internet access.",
+    "version": "2.0",
+    "nodes": {
+        "node_input": {
+            "id": "node_input",
+            "name": "Mission Control",
+            "type": "input",
+            "x": 50,
+            "y": 300,
+            "persona": "Define the software challenge or bug report."
+        },
+        "node_optimizer": {
+            "id": "node_optimizer",
+            "name": "Super Optimizer",
+            "type": "optimizer",
+            "x": 50,
+            "y": 100,
+            "persona": "You represent the OPTIMIZER engine. Your goal is to review the code and architecture provided by the team and perform a final high-level optimization pass. Output a structured Markdown report with: # Final Optimization Report \n ## Critical Improvements \n ## Code Refactoring \n ## Security Audit. Do NOT output generic advice; provide concrete code improvements where applicable.",
+            "tier": "paid",
+            "provider": "google_ai",
+            "model": "gemini-1.5-flash"
+        },
+        "node_detective": {
+            "id": "node_detective",
+            "name": "Bug Detective",
+            "type": "agent",
+            "x": 300,
+            "y": 100,
+            "sub_workflow_path": "workflows/templates/debug_detective.json",
+            "return_event_bubble": true,
+            "tier": "paid",
+            "persona": "Detailed bug analysis and root cause identification."
+        },
+        "node_programmer": {
+            "id": "node_programmer",
+            "name": "Coding Team",
+            "type": "agent",
+            "x": 300,
+            "y": 300,
+            "sub_workflow_path": "workflows/templates/programmer_team.json",
+            "return_event_bubble": true,
+            "internet_access": true,
+            "tier": "paid",
+            "persona": "End-to-end development: Architect -> Developer -> QA."
+        },
+        "node_reviewer": {
+            "id": "node_reviewer",
+            "name": "Logic Reviewer",
+            "type": "agent",
+            "x": 300,
+            "y": 500,
+            "sub_workflow_path": "workflows/templates/code_reviewer.json",
+            "return_event_bubble": true,
+            "persona": "Deep logic and security audit of the implementation."
+        },
+        "node_director": {
+            "id": "node_director",
+            "name": "CEO Director",
+            "type": "director",
+            "x": 600,
+            "y": 300,
+            "requires_approval": true,
+            "tier": "paid",
+            "persona": "Final decision on production readiness. Synthesize reports from Detective, Coder, and Reviewer."
+        },
+        "node_output": {
+            "id": "node_output",
+            "name": "Production Release",
+            "type": "output",
+            "x": 900,
+            "y": 300,
+            "save_enabled": true,
+            "save_path": "exports/releases/"
+        }
+    },
+    "edges": [
+        {
+            "source": "node_input",
+            "target": "node_detective",
+            "label": "Analysis"
+        },
+        {
+            "source": "node_input",
+            "target": "node_programmer",
+            "label": "Build"
+        },
+        {
+            "source": "node_detective",
+            "target": "node_programmer",
+            "label": "Insights"
+        },
+        {
+            "source": "node_programmer",
+            "target": "node_reviewer",
+            "label": "Audit"
+        },
+        {
+            "source": "node_reviewer",
+            "target": "node_director",
+            "label": "Report"
+        },
+        {
+            "source": "node_detective",
+            "target": "node_director",
+            "label": "Diagnosis"
+        },
+        {
+            "source": "node_director",
+            "target": "node_output",
+            "label": "Ship It"
+        },
+        {
+            "source": "node_director",
+            "target": "node_programmer",
+            "label": "Fix Bugs",
+            "feedback": true
+        }
+    ]
+}
