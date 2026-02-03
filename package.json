@@ -5,9 +5,9 @@
     "typescript": "^5.9.3",
     "vite": "^7.3.1"
   },
-  "name": "multiagentorchestrator",
+  "name": "multi-agent-orchestrator",
   "version": "1.0.0",
-  "description": "Overview of the project directory structure and file naming conventions.",
+  "description": "Visual orchestration platform for multi-agent LLM workflows.",
   "main": "index.js",
   "directories": {
     "doc": "docs",
