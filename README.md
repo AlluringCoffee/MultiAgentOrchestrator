@@ -57,7 +57,6 @@ You can load this exact pattern using the `enterprise_studio_v11_template.json` 
 ### Prerequisites
 
 * Python 3.9+
-* Node.js & npm (for front-end dependencies)
 
 ### Setup
 
@@ -74,13 +73,7 @@ You can load this exact pattern using the `enterprise_studio_v11_template.json` 
    pip install -r requirements.txt
    ```
 
-3. **Install Front-end dependencies**:
-
-   ```bash
-   npm install
-   ```
-
-4. **Configure Environment**:
+3. **Configure Environment**:
    Copy the example environment file and add your API keys.
 
    ```bash
